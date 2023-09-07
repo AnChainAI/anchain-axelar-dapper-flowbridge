@@ -2,6 +2,8 @@ module flowbridge
 
 go 1.21.0
 
+require github.com/onflow/flow-go-sdk v0.43.0
+
 require (
 	github.com/bits-and-blooms/bitset v1.5.0 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.2.1 // indirect
@@ -17,7 +19,6 @@ require (
 	github.com/onflow/atree v0.6.0 // indirect
 	github.com/onflow/cadence v0.40.0 // indirect
 	github.com/onflow/crypto v0.24.9 // indirect
-	github.com/onflow/flow-go-sdk v0.43.0 // indirect
 	github.com/onflow/flow/protobuf/go/flow v0.3.2-0.20221202093946-932d1c70e288 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
