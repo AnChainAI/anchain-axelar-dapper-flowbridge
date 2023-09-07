@@ -9,6 +9,7 @@ pub contract AxelarExecutable: IAxelarExecutable {
     return &self.gatewayManager as &AxelarGateway.AxelarGatewayManager
   }
 
+  // @dev Execute an interchain contract call after validating that an approval for it is recorded at the gateway
   pub fun execute(commandId: String, sourceChain: String, sourceAddress: String, senderAddress: Address, payload: String) {
     let payloadHash = String.encodeHex(Crypto.hash(payload.utf8, algorithm: HashAlgorithm.KECCAK_256))
 
