@@ -1,4 +1,4 @@
-import { Emulator, FlowAccount } from '../util-testing'
+import { Emulator, FlowAccount } from '../utils/testing'
 
 // npm test -- gateway.spec.ts
 describe('AxelarGateway', () => {

@@ -1,5 +1,5 @@
 import { AccountOpts } from '../interfaces/account-opts.interface'
-import { sendTransaction } from '../../../util-flow'
+import { sendTransaction } from '../../../flow'
 import { EMULATOR_CONST } from '../constants'
 import { Emulator } from '../emulator'
 
