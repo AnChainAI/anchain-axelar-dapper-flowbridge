@@ -1,4 +1,4 @@
-import { FlowConstants } from '../../util-flow'
+import { FlowConstants } from '../../flow'
 
 export const EMULATOR_CONST: Omit<FlowConstants, 'FLOW_ADMIN_ADDRESS'> = {
   FLOW_ACCESS_API: 'http://localhost:8080',

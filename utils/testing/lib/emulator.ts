@@ -2,7 +2,6 @@ import { countKeys } from './scripts/count-keys'
 import { send } from '@onflow/transport-grpc'
 import { getAuthorizer } from './auth'
 import * as fcl from '@onflow/fcl'
-import { randomInt } from 'crypto'
 
 export class Emulator {
   private static readonly PRIVATE_KEY =
