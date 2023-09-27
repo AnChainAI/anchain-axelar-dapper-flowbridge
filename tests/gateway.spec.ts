@@ -1,7 +1,7 @@
 import { Emulator, FlowAccount } from '../util-testing'
 
 // npm test -- gateway.spec.ts
-describe('test', () => {
+describe('AxelarGateway', () => {
   let admin: FlowAccount
 
   beforeAll(async () => {
@@ -10,7 +10,7 @@ describe('test', () => {
     admin = await FlowAccount.from({})
   })
 
-  it('hello world', async () => {
+  it('test emulator connection and flow account creation', async () => {
     const address = admin.addr
     console.log(address)
   })
