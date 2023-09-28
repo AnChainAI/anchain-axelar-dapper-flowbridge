@@ -22,7 +22,6 @@ pub contract AxelarAuthWeighted {
     return operatorsEpoch! == epoch
   }
 
-  //TODO: Reiview
   access(account) fun transferOperatorship(newOperators: [String], newWeights: [UInt256], newThreshold: UInt256){
     self._transferOperatorship(newOperators: newOperators, newWeights: newWeights, newThreshold: newThreshold)
   }
@@ -48,7 +47,7 @@ pub contract AxelarAuthWeighted {
     }
     
     let newOperatorsHash = self._operatorsToHash(operators: newOperators, weights: newWeights, threshold: newThreshold)
-    if (self.epochForHash[newOperatorsHash] != 0){
+    if (self.epochForHash[newOperatorsHash] != nil){
       panic("Duplicate Operators")
     }
 
@@ -95,7 +94,6 @@ pub contract AxelarAuthWeighted {
     panic("Low Signatures Weight")
   }
 
-  //TODO: REVIEW
   priv fun _isSortedAscAndContainsNoDuplicate(operators: [String]): Bool {
     let operatorsLength = operators.length
     var prevOperator = operators[0]
@@ -118,13 +116,14 @@ pub contract AxelarAuthWeighted {
     // following Ethereum's \x19Ethereum Signed Message:\n<length of message><message> convention
     let ethereumMessagePrefix: String = "\u{0019}Ethereum Signed Message:\n".concat(message.length.toString())
     let fullMessage = ethereumMessagePrefix.concat(message)
+    let messageHash = Crypto.hash(fullMessage.utf8, algorithm: HashAlgorithm.KECCAK_256)
 
     let publicKey = PublicKey(
       publicKey: decodedHexOperatorPublicKey,
       signatureAlgorithm: SignatureAlgorithm.ECDSA_secp256k1
     )
 
-    let isValid = publicKey.verify(signature: decodedHexSignature, signedData: fullMessage.utf8, domainSeparationTag: "", hashAlgorithm: HashAlgorithm.KECCAK_256)
+    let isValid = publicKey.verify(signature: decodedHexSignature, signedData: messageHash, domainSeparationTag: "", hashAlgorithm: HashAlgorithm.KECCAK_256)
 
     return isValid
   }
