@@ -1,5 +1,5 @@
-import IAxelarGateway from "./interfaces/IAxelarGateway.cdc"
 import AxelarAuthWeighted from "./auth/AxelarAuthWeighted.cdc"
+import IAxelarGateway from "./interfaces/IAxelarGateway.cdc"
 import EternalStorage from "./util/EternalStorage.cdc"
 import Crypto
 
@@ -25,7 +25,7 @@ pub contract AxelarGateway: IAxelarGateway {
         commandId: String,
         sourceChain: String,
         sourceAddress: String,
-        contractAddress: Address,
+        contractAddress: String,
         payloadHash: [UInt8],
         sourceTxHash: String,
         sourceEventIndex: UInt256
@@ -33,7 +33,9 @@ pub contract AxelarGateway: IAxelarGateway {
 
     pub event OperatorshipTransferred(newOperatorsData: String)
 
-    // PUBLIC METHODS
+    /******************\
+    |* Public Methods *|
+    \******************/
     pub fun callContract(sender: Address, destinationChain: String, contractAddress: String, payload: [UInt8]) {
         emit ContractCall(
             sender: sender,
@@ -44,7 +46,7 @@ pub contract AxelarGateway: IAxelarGateway {
         )
     }
 
-    pub fun isContractCallApproved(commandId: String, sourceChain: String, sourceAddress: String, contractAddress: Address, payloadHash: [UInt8]): Bool {
+    pub fun isContractCallApproved(commandId: String, sourceChain: String, sourceAddress: String, contractAddress: String, payloadHash: [UInt8]): Bool {
         let key = self._getIsContractCallApprovedKey(commandId: commandId, sourceChain: sourceChain, sourceAddress: sourceAddress, contractAddress: contractAddress, payloadHash: payloadHash)
         return EternalStorage.getBool(key: key)
     }
@@ -58,43 +60,40 @@ pub contract AxelarGateway: IAxelarGateway {
         return valid
     }
 
-    // GETTERS
+    /***********\
+    |* Getters *|
+    \***********/
     pub fun isCommandExecuted(commandId: String): Bool {
         return EternalStorage.getBool(key: self._getIsCommandExecutedKey(commandId))
     }
 
-    // EXTERNAL FUNCTIONS
+    /**********************\
+    |* External Functions *|
+    \**********************/
     pub fun execute(
-        chainId: UInt256,
         commandIds: [String],
         commands: [String],
         params: [[String]],
-        messageHash: [UInt8],
         operators: [String],
         weights: [UInt256],
         threshold: UInt256,
         signatures: [String]
     ) {
-        let data = commandIds
-        data.appendAll(commands)
-        //TODO: Message Hash
-        let messageHash: String = ""
+        let message = self._dataToHexEncodedMessage(commandIds: commandIds, commands: commands, params: params)
 
-        let allowOperatorshipTransfer = AxelarAuthWeighted.validateProof(message: messageHash, operators: operators, weights: weights, threshold: threshold, signatures: signatures)
-        //Add ChainId check?? is there a way to fetch the chain in the contract?
-         //if (chainId != block.chainid) revert InvalidChainId();
+        let allowOperatorshipTransfer = AxelarAuthWeighted.validateProof(message: message, operators: operators, weights: weights, threshold: threshold, signatures: signatures)
 
-         let commandsLength = commandIds.length
-         
-         if(commandsLength != commandIds.length || commandsLength != params.length){
+        let commandsLength = commandIds.length
+        
+        if(commandsLength != commandIds.length || commandsLength != params.length) {
             panic("Invalid Commands")
-         }
+        }
 
-         var i = 0
+        var i = 0
 
-         while i < commandsLength{
+        while i < commandsLength {
             let commandId = commandIds[i]
-            if (self.isCommandExecuted(commandId: commandId)){
+            if (self.isCommandExecuted(commandId: commandId)) {
                 continue
             }
             /*
@@ -113,21 +112,25 @@ pub contract AxelarGateway: IAxelarGateway {
             }
             */
 
-            self._setCommandExecuted(commandId: commandId, executed: true)       
+            self._setCommandExecuted(commandId: commandId, executed: true)
 
             let success : Bool = true
             //call functions
 
             if (success) {
                 emit Executed(commandId: commandId)
-            }else{
+            } else {
                 self._setCommandExecuted(commandId: commandId, executed: false)
             }
+            
             i = i + 1
-         }
+        }
     }
-    // SELF FUNCTIONS
-    priv fun approveContractCall(sourceChain: String, sourceAddress: String, contractAddress: Address, payloadHash: [UInt8], sourceTxHash: String, sourceEventIndex: UInt256, commandId: String){
+
+    /******************\
+    |* Self Functions *|
+    \******************/
+    priv fun approveContractCall(sourceChain: String, sourceAddress: String, contractAddress: String, payloadHash: [UInt8], sourceTxHash: String, sourceEventIndex: UInt256, commandId: String){
         self._setContractCalApproved(commandId: commandId, sourceChain: sourceChain, sourceAddress: sourceAddress, contractAddress: contractAddress, payloadHash: payloadHash)
         emit ContractCallApproved(
         commandId: commandId,
@@ -140,23 +143,50 @@ pub contract AxelarGateway: IAxelarGateway {
     )
     }
 
-    // INTERNAL FUNCTIONS
+    /********************\
+    |* Internal Getters *|
+    \********************/
     priv fun _getIsCommandExecutedKey(_ commandId: String): String {
         return String.encodeHex(self.PREFIX_COMMAND_EXECUTED.concat(commandId.utf8))
     }
 
-    priv fun _getIsContractCallApprovedKey(commandId: String, sourceChain: String, sourceAddress: String, contractAddress: Address, payloadHash: [UInt8]): String {
-        let data = self.PREFIX_CONTRACT_CALL_APPROVED.concat(commandId.utf8).concat(sourceChain.utf8).concat(sourceAddress.utf8).concat(contractAddress.toString().utf8).concat(payloadHash)
+    priv fun _getIsContractCallApprovedKey(commandId: String, sourceChain: String, sourceAddress: String, contractAddress: String, payloadHash: [UInt8]): String {
+        let data = self.PREFIX_CONTRACT_CALL_APPROVED.concat(commandId.utf8).concat(sourceChain.utf8).concat(sourceAddress.utf8).concat(contractAddress.utf8).concat(payloadHash)
         return String.encodeHex(data)
     }
 
-    // INTERNAL SETTERS
-    priv fun _setContractCalApproved(commandId:String, sourceChain: String, sourceAddress:String, contractAddress: Address, payloadHash: [UInt8]){
+    /********************\
+    |* Internal Setters *|
+    \********************/
+    priv fun _setContractCalApproved(commandId:String, sourceChain: String, sourceAddress: String, contractAddress: String, payloadHash: [UInt8]){
         EternalStorage._setBool(key:self._getIsContractCallApprovedKey(commandId: commandId, sourceChain: sourceChain, sourceAddress: sourceAddress, contractAddress: contractAddress, payloadHash: payloadHash) , value: true)
     }
 
-    priv fun _setCommandExecuted(commandId: String, executed: bool){
-        EternalStorage._setBool(key: self._getIsCommandExecutedKey(commandId: commandId), value: executed)
+    priv fun _setCommandExecuted(commandId: String, executed: Bool){
+        EternalStorage._setBool(key: self._getIsCommandExecutedKey(commandId), value: executed)
+    }
+
+    /**************************\
+    |* Internal Functionality *|
+    \**************************/
+    priv fun _dataToHexEncodedMessage(commandIds: [String], commands: [String], params: [[String]]): String {
+        let message: [UInt8] = []
+
+        for id in commandIds {
+            message.appendAll(id.utf8)
+        }
+
+        for command in commands {
+            message.appendAll(command.utf8)
+        }
+
+        for inputs in params {
+            for input in inputs {
+                message.appendAll(input.utf8)
+            }
+        }
+
+        return String.encodeHex(message)
     }
 
     init() {
