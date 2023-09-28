@@ -7,7 +7,9 @@ pub contract AxelarAuthWeighted {
 
   priv let OLD_KEY_RETENTION: UInt256
 
-  // EXTERNAL FUNCTIONALITY
+  /**************************\
+  |* External Functionality *|
+  \**************************/
   pub fun validateProof(message: String, operators: [String], weights: [UInt256], threshold: UInt256, signatures: [String]): Bool {
     let operatorsHash = self._operatorsToHash(operators: operators, weights: weights, threshold: threshold)
     let operatorsEpoch = self.epochForHash[operatorsHash]
@@ -22,10 +24,16 @@ pub contract AxelarAuthWeighted {
     return operatorsEpoch! == epoch
   }
 
+  /***********************\
+  |* Owner Functionality *|
+  \***********************/
   access(account) fun transferOperatorship(newOperators: [String], newWeights: [UInt256], newThreshold: UInt256){
     self._transferOperatorship(newOperators: newOperators, newWeights: newWeights, newThreshold: newThreshold)
   }
 
+  /**************************\
+  |* Internal Functionality *|
+  \**************************/
   priv fun _transferOperatorship(newOperators: [String], newWeights: [UInt256], newThreshold: UInt256){
     let operatorsLength = newOperators.length
     let weightsLength = newWeights.length
