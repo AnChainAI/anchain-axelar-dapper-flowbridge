@@ -50,5 +50,13 @@ pub contract interface IAxelarGateway {
   /**********************\
   |* External Functions *|
   \**********************/
-  pub fun execute(input: String)
+  pub fun execute(
+    commandIds: [String],
+    commands: [String],
+    params: [[String]],
+    operators: [String],
+    weights: [UInt256],
+    threshold: UInt256,
+    signatures: [String]
+  )
 }
