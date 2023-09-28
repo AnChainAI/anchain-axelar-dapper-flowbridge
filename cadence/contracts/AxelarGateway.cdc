@@ -1,9 +1,8 @@
 import AxelarAuthWeighted from "./auth/AxelarAuthWeighted.cdc"
-import IAxelarGateway from "./interfaces/IAxelarGateway.cdc"
 import EternalStorage from "./util/EternalStorage.cdc"
 import Crypto
 
-pub contract AxelarGateway: IAxelarGateway {
+pub contract AxelarGateway {
     priv let PREFIX_CONTRACT_CALL_APPROVED: [UInt8]
     priv let PREFIX_COMMAND_EXECUTED: [UInt8]
 
@@ -85,7 +84,7 @@ pub contract AxelarGateway: IAxelarGateway {
 
         let commandsLength = commandIds.length
         
-        if(commandsLength != commandIds.length || commandsLength != params.length) {
+        if(commandsLength != commands.length || commandsLength != params.length) {
             panic("Invalid Commands")
         }
 
