@@ -77,12 +77,10 @@ pub contract AxelarGateway: IAxelarGateway {
     ) {
         let data = commandIds
         data.appendAll(commands)
-        // Is there a way to concat all these params and turn it into a hex encoded string?
-        let message: String = "String encoded hex of `chainId`, `commandIds`, `commands`, and `params`"
         //TODO: Message Hash
         let messageHash: String = ""
 
-        let allowOperatorshipTransfer = AxelarAuthWeighted.validateProof(message: message, operators: operators, weights: weights, threshold: threshold, signatures: signatures)
+        let allowOperatorshipTransfer = AxelarAuthWeighted.validateProof(message: messageHash, operators: operators, weights: weights, threshold: threshold, signatures: signatures)
         //Add ChainId check?? is there a way to fetch the chain in the contract?
          //if (chainId != block.chainid) revert InvalidChainId();
 
