@@ -7,6 +7,24 @@ pub contract AxelarAuthWeighted {
 
   priv let OLD_KEY_RETENTION: UInt256
 
+  pub event OperatorshipTransferred(
+    newOperators: [String],
+    newWeights: [UInt256],
+    newThreshold: UInt256
+  )
+
+  pub struct TransferOperatorshipParams {
+    pub let newOperators: [String]
+    pub let newWeights: [UInt256]
+    pub let newThreshold: UInt256
+
+    init(newOperators: [String], newWeights: [UInt256], newThreshold: UInt256) {
+        self.newOperators = newOperators
+        self.newThreshold = newThreshold
+        self.newWeights = newWeights
+    }
+  }
+
   /**************************\
   |* External Functionality *|
   \**************************/
@@ -27,8 +45,9 @@ pub contract AxelarAuthWeighted {
   /***********************\
   |* Owner Functionality *|
   \***********************/
-  access(account) fun transferOperatorship(newOperators: [String], newWeights: [UInt256], newThreshold: UInt256){
-    self._transferOperatorship(newOperators: newOperators, newWeights: newWeights, newThreshold: newThreshold)
+  access(account) fun transferOperatorship(params: TransferOperatorshipParams){
+    self._transferOperatorship(newOperators: params.newOperators, newWeights: params.newWeights, newThreshold: params.newThreshold)
+    emit OperatorshipTransferred(newOperators: params.newOperators, newWeights: params.newWeights, newThreshold: params.newThreshold)
   }
 
   /**************************\
