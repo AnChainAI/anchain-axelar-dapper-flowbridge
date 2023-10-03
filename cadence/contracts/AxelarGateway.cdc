@@ -190,7 +190,7 @@ pub contract AxelarGateway {
     |* Internal Setters *|
     \********************/
     priv fun _setContractCalApproved(commandId:String, sourceChain: String, sourceAddress: String, contractAddress: String, payloadHash: [UInt8]) {
-        EternalStorage._setBool(key:self._getIsContractCallApprovedKey(commandId: commandId, sourceChain: sourceChain, sourceAddress: sourceAddress, contractAddress: contractAddress, payloadHash: payloadHash) , value: true)
+        EternalStorage._setBool(key: self._getIsContractCallApprovedKey(commandId: commandId, sourceChain: sourceChain, sourceAddress: sourceAddress, contractAddress: contractAddress, payloadHash: payloadHash), value: true)
     }
 
     priv fun _setCommandExecuted(commandId: String, executed: Bool) {
