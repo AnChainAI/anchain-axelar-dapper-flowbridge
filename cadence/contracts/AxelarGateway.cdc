@@ -244,7 +244,7 @@ pub contract AxelarGateway {
         )
     }
 
-        priv fun _getTransferOperatorshipParams(params: [AnyStruct]): AxelarAuthWeighted.TransferOperatorshipParams? {
+    priv fun _getTransferOperatorshipParams(params: [AnyStruct]): AxelarAuthWeighted.TransferOperatorshipParams? {
         let newOperators = params[0].isInstance(Type<[String]>())
         let newWeights = params[1].isInstance(Type<[UInt256]>())
         let newThreshold = params[2].isInstance(Type<UInt256>())
