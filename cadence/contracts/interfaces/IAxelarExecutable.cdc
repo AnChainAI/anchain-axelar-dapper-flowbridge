@@ -1,9 +1,5 @@
 pub contract interface IAxelarExecutable {
-  pub fun execute(
-    commandId: String,
-    sourceChain: String,
-    sourceAddress: String,
-    senderAddress: String,
-    payload: [UInt8]
-  )
+  pub resource AxelarExecutable {
+    pub fun execute(sourceChain: String, sourceAddress: String, payload: [UInt8])
+  }
 }
