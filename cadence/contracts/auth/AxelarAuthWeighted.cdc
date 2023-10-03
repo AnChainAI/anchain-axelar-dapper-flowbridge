@@ -45,7 +45,7 @@ pub contract AxelarAuthWeighted {
   /***********************\
   |* Owner Functionality *|
   \***********************/
-  access(account) fun transferOperatorship(params: TransferOperatorshipParams){
+  access(account) fun transferOperatorship(params: TransferOperatorshipParams) {
     self._transferOperatorship(newOperators: params.newOperators, newWeights: params.newWeights, newThreshold: params.newThreshold)
     emit OperatorshipTransferred(newOperators: params.newOperators, newWeights: params.newWeights, newThreshold: params.newThreshold)
   }
@@ -53,28 +53,28 @@ pub contract AxelarAuthWeighted {
   /**************************\
   |* Internal Functionality *|
   \**************************/
-  priv fun _transferOperatorship(newOperators: [String], newWeights: [UInt256], newThreshold: UInt256){
+  priv fun _transferOperatorship(newOperators: [String], newWeights: [UInt256], newThreshold: UInt256) {
     let operatorsLength = newOperators.length
     let weightsLength = newWeights.length
 
-    if (operatorsLength == 0 || !self._isSortedAscAndContainsNoDuplicate(operators: newOperators)){
+    if (operatorsLength == 0 || !self._isSortedAscAndContainsNoDuplicate(operators: newOperators)) {
       panic("Invalid Operators")
     }
-    if (weightsLength != operatorsLength){
+    if (weightsLength != operatorsLength) {
       panic("Invalid Weights")
     }
 
     var totalWeight: UInt256 = 0
-    for weight in newWeights{
+    for weight in newWeights {
       totalWeight = totalWeight + weight
     }
 
-    if(newThreshold == 0 || totalWeight < newThreshold){
+    if (newThreshold == 0 || totalWeight < newThreshold) {
       panic("Invalid Threshold")
     }
     
     let newOperatorsHash = self._operatorsToHash(operators: newOperators, weights: newWeights, threshold: newThreshold)
-    if (self.epochForHash[newOperatorsHash] != nil){
+    if (self.epochForHash[newOperatorsHash] != nil) {
       panic("Duplicate Operators")
     }
 
