@@ -1,3 +1,4 @@
+import IAxelarExecutable from "./interfaces/IAxelarExecutable.cdc"
 import AxelarAuthWeighted from "./auth/AxelarAuthWeighted.cdc"
 import EternalStorage from "./util/EternalStorage.cdc"
 import Crypto
@@ -78,8 +79,8 @@ pub contract AxelarGateway {
         return EternalStorage.getBool(key: key)
     }
 
-    pub fun validateContractCall(commandId: String, sourceChain: String, sourceAddress: String, senderAddress: String, payloadHash: [UInt8]): Bool {
-        let key = self._getIsContractCallApprovedKey(commandId: commandId, sourceChain: sourceChain, sourceAddress: sourceAddress, contractAddress: senderAddress, payloadHash: payloadHash)
+    pub fun validateContractCall(commandId: String, sourceChain: String, sourceAddress: String, contractAddress: String, payloadHash: [UInt8]): Bool {
+        let key = self._getIsContractCallApprovedKey(commandId: commandId, sourceChain: sourceChain, sourceAddress: sourceAddress, contractAddress: contractAddress, payloadHash: payloadHash)
         let valid = EternalStorage.getBool(key: key)
         if valid == true {
             EternalStorage._setBool(key: key, value: false)
@@ -156,6 +157,35 @@ pub contract AxelarGateway {
 
             i = i + 1
         }
+    }
+
+    pub fun executeApp(commandId: String, sourceChain: String, sourceAddress: String, contractAddress: String, payload: [UInt8]) {
+        let appCapability = EternalStorage._getCapability(contractAddress: contractAddress)
+
+        if appCapability == nil {
+            panic("AxelarExecutable Capability not found for ".concat(contractAddress))
+        }
+
+        let payloadHash = Crypto.hash(payload, algorithm: HashAlgorithm.KECCAK_256)
+
+        if (!self.validateContractCall(commandId: commandId, sourceChain: sourceChain, sourceAddress: sourceAddress, contractAddress: contractAddress, payloadHash: payloadHash)) {
+            panic("Not approved by gateway")
+        }
+
+        let executeCapability = appCapability!.borrow()
+        if (executeCapability == nil) {
+            panic("Could not borrow execute capability")
+        }
+
+        executeCapability!.execute(sourceChain: sourceChain, sourceAddress: sourceAddress, payload: payload)
+    }
+
+    pub fun onboardApp(_ executeCapability: Capability<&{IAxelarExecutable.AxelarExecutable}>) {
+        pre {
+            executeCapability.check(): "Invalid capability"
+        }
+
+        EternalStorage._setCapability(capability: executeCapability)
     }
 
     /******************\
