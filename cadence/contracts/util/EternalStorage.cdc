@@ -1,22 +1,42 @@
+import IAxelarExecutable from "../interfaces/IAxelarExecutable.cdc"
+
 pub contract EternalStorage {
-    access(self) var _boolStorage: {String:Bool}
+    access(self) let _appCapabilities: {String: Capability<&{IAxelarExecutable.AxelarExecutable}>}
+    access(self) var _boolStorage: {String: Bool}
 
-    // *** Setter Methods ***
+    /********************\
+    |* Internal Methods *|
+    \********************/
+    access(account) fun _setCapability(capability: Capability<&{IAxelarExecutable.AxelarExecutable}>) {
+        self._appCapabilities[capability.address.toString()] = capability
+    }
+
     access(account) fun _setBool(key: String, value: Bool) {
-        EternalStorage._boolStorage[key] = value
+        self._boolStorage[key] = value
     }
 
-    // *** Delete Methods ***
+    access(account) fun _deleteCapability(contractAddress: String) {
+        self._appCapabilities.remove(key: contractAddress)
+    }
+
     access(account) fun _deleteBool(key: String) {
-        EternalStorage._boolStorage.remove(key: key)
+        self._boolStorage.remove(key: key)
     }
 
-    // *** Getter Methods ***
+    access(account) fun _getCapability(contractAddress: String): Capability<&{IAxelarExecutable.AxelarExecutable}>? {
+        return self._appCapabilities[contractAddress]
+    }
+
+    /********************\
+    |* External Methods *|
+    \********************/
     pub fun getBool(key: String): Bool {
         return self._boolStorage[key] ?? false
     }
 
     init() {
+        self._appCapabilities = {}
         self._boolStorage = {}
     }
 }
+
