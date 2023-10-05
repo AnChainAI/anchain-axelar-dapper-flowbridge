@@ -5,7 +5,7 @@ export interface FlowConstants {
   readonly FLOW_ACCESS_API: string
 
   /**
-   * The address of the admin account that has the OpenSale smart contract.
+   * The address of the admin account.
    */
   readonly FLOW_ADMIN_ADDRESS: string
 

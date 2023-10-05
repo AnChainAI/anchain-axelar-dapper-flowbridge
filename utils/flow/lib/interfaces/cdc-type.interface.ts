@@ -2,6 +2,7 @@ export interface CadenceType {
   readonly Address: unknown
   readonly UFix64: unknown
   readonly UInt64: unknown
+  readonly UInt8: unknown
   readonly String: unknown
   readonly Bool: unknown
   readonly Int: unknown
