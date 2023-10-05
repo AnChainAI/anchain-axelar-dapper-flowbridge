@@ -75,7 +75,9 @@ describe('AxelarGateway', () => {
       const data = {
         destinationChain: 'Destination',
         destinationContractAddress: '0x123abc',
-        payload: Array.from(encoder.encode('hello world')),
+        payload: Array.from(
+          encoder.encode(JSON.stringify({ address: relayer.addr })),
+        ),
       }
 
       // Send callContract transaction
