@@ -1,4 +1,4 @@
-export interface KeyValue<T> {
-  key: T
-  value: T
+export interface KeyValue<K, V = K> {
+  readonly key: K
+  readonly value: V
 }

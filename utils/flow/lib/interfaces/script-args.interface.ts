@@ -4,6 +4,6 @@ export interface ScriptArgs {
   readonly cadence: string
   readonly args: (
     arg: (a: unknown, t: unknown) => unknown,
-    t: CadenceType
+    t: CadenceType,
   ) => unknown[]
 }
