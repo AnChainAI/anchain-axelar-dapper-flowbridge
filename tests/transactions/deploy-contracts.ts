@@ -27,7 +27,7 @@ export interface DeployContractsArgs {
 }
 
 export async function deployContracts(
-  params: TransactionFunctionParams<DeployContractsArgs>,
+  params: Omit<TransactionFunctionParams<DeployContractsArgs>, 'constants'>,
 ) {
   let { datas, types } = wrapContracts(params.args.contracts)
   return await sendTransaction({
