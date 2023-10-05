@@ -26,6 +26,30 @@
         "testnet": "0x9a0766d93b6608b7",
         "mainnet": "0xf233dcee88fe0abe"
       }
+    },
+    "IAxelarExecutable": {
+      "source": "./cadence/contracts/interfaces/IAxelarExecutable.cdc",
+      "aliases": {
+        "emulator": "0x01cf0e2f2f715450"
+      }
+    },
+    "EternalStorage": {
+      "source": "./cadence/contracts/util/EternalStorage.cdc",
+      "aliases": {
+        "emulator": "0x01cf0e2f2f715450"
+      }
+    },
+    "AxelarAuthWeighted": {
+      "source": "./cadence/contracts/auth/AxelarAuthWeighted.cdc",
+      "aliases": {
+        "emulator": "0x01cf0e2f2f715450"
+      }
+    },
+    "AxelarGateway": {
+      "source": "./cadence/contracts/AxelarGateway.cdc",
+      "aliases": {
+        "emulator": "0x01cf0e2f2f715450"
+      }
     }
   },
   "accounts": {
