@@ -64,11 +64,11 @@ pub contract AxelarGateway {
     /******************\
     |* Public Methods *|
     \******************/
-    pub fun callContract(sender: Address, destinationChain: String, contractAddress: String, payload: [UInt8]) {
+    pub fun callContract(sender: Address, destinationChain: String, destinationContractAddress: String, payload: [UInt8]) {
         emit ContractCall(
             sender: sender,
             destinationChain: destinationChain,
-            destinationContractAddress: contractAddress,
+            destinationContractAddress: destinationContractAddress,
             payloadHash: Crypto.hash(payload, algorithm: HashAlgorithm.KECCAK_256),
             payload: payload
         )
