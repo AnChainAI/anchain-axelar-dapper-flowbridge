@@ -1,6 +1,5 @@
 import IAxelarExecutable from "./interfaces/IAxelarExecutable.cdc"
 import AxelarAuthWeighted from "./auth/AxelarAuthWeighted.cdc"
-import EternalStorage from "./util/EternalStorage.cdc"
 import Crypto
 
 pub contract AxelarGateway {
@@ -9,6 +8,9 @@ pub contract AxelarGateway {
 
     priv let SELECTOR_APPROVE_CONTRACT_CALL: [UInt8]
     priv let SELECTOR_TRANSFER_OPERATORSHIP: [UInt8]
+
+    priv let appCapabilities: {String: Capability<&{IAxelarExecutable.AxelarExecutable}>}
+    priv let boolStorage: {String: Bool}
 
     /**********\
     |* Events *|
@@ -40,7 +42,6 @@ pub contract AxelarGateway {
         pub let payloadHash: [UInt8]
         pub let sourceTxHash: String
         pub let sourceEventIndex: UInt256
-        pub let commandId: String
 
         init(
             sourceChain: String,
@@ -49,7 +50,6 @@ pub contract AxelarGateway {
             payloadHash: [UInt8],
             sourceTxHash: String,
             sourceEventIndex: UInt256,
-            commandId: String
         ) {
             self.sourceChain = sourceChain
             self.sourceAddress = sourceAddress
@@ -57,14 +57,13 @@ pub contract AxelarGateway {
             self.payloadHash = payloadHash
             self.sourceTxHash = sourceTxHash
             self.sourceEventIndex = sourceEventIndex
-            self.commandId = commandId
         }
     }
 
     /******************\
     |* Public Methods *|
     \******************/
-    pub fun callContract(sender: Address, destinationChain: String, destinationContractAddress: String, payload: [UInt8]) {
+   pub fun callContract(sender: Address, destinationChain: String, destinationContractAddress: String, payload: [UInt8]) {
         emit ContractCall(
             sender: sender,
             destinationChain: destinationChain,
@@ -76,14 +75,14 @@ pub contract AxelarGateway {
 
     pub fun isContractCallApproved(commandId: String, sourceChain: String, sourceAddress: String, contractAddress: String, payloadHash: [UInt8]): Bool {
         let key = self._getIsContractCallApprovedKey(commandId: commandId, sourceChain: sourceChain, sourceAddress: sourceAddress, contractAddress: contractAddress, payloadHash: payloadHash)
-        return EternalStorage.getBool(key: key)
+        return self.boolStorage[key] ?? false
     }
 
     pub fun validateContractCall(commandId: String, sourceChain: String, sourceAddress: String, contractAddress: String, payloadHash: [UInt8]): Bool {
         let key = self._getIsContractCallApprovedKey(commandId: commandId, sourceChain: sourceChain, sourceAddress: sourceAddress, contractAddress: contractAddress, payloadHash: payloadHash)
-        let valid = EternalStorage.getBool(key: key)
+        let valid = self.boolStorage[key] ?? false
         if valid == true {
-            EternalStorage._setBool(key: key, value: false)
+            self.boolStorage[key] = false
         }
         return valid
     }
@@ -92,7 +91,7 @@ pub contract AxelarGateway {
     |* Getters *|
     \***********/
     pub fun isCommandExecuted(commandId: String): Bool {
-        return EternalStorage.getBool(key: self._getIsCommandExecutedKey(commandId))
+        return self.boolStorage[self._getIsCommandExecutedKey(commandId)] ?? false
     }
 
     /**********************\
@@ -113,7 +112,7 @@ pub contract AxelarGateway {
 
         let commandsLength = commandIds.length
         
-        if(commandsLength != commands.length || commandsLength != params.length) {
+        if (commandsLength != commands.length || commandsLength != params.length) {
             panic("Invalid Commands")
         }
 
@@ -127,12 +126,12 @@ pub contract AxelarGateway {
 
             let commandHash = Crypto.hash(commands[i].utf8, algorithm: HashAlgorithm.KECCAK_256)
 
-            if (commandHash == self.SELECTOR_APPROVE_CONTRACT_CALL && params[i].length == 7) {
+            if (commandHash == self.SELECTOR_APPROVE_CONTRACT_CALL && params[i].length == 6) {
                 let approveParams = self._getApproveContractCallParams(params: params[i])
 
                 if approveParams != nil {
                     self._setCommandExecuted(commandId: commandId, executed: true)
-                    self.approveContractCall(params: approveParams!)
+                    self.approveContractCall(commandId: commandId, params: approveParams!)
                     emit Executed(commandId: commandId)
                 } else {
                     self._setCommandExecuted(commandId: commandId, executed: false)
@@ -160,7 +159,7 @@ pub contract AxelarGateway {
     }
 
     pub fun executeApp(commandId: String, sourceChain: String, sourceAddress: String, contractAddress: String, payload: [UInt8]) {
-        let appCapability = EternalStorage._getCapability(contractAddress: contractAddress)
+        let appCapability = self.appCapabilities[contractAddress]
 
         if appCapability == nil {
             panic("AxelarExecutable Capability not found for ".concat(contractAddress))
@@ -185,16 +184,16 @@ pub contract AxelarGateway {
             executeCapability.check(): "Invalid capability"
         }
 
-        EternalStorage._setCapability(capability: executeCapability)
+        self.appCapabilities[executeCapability.address.toString()] = executeCapability
     }
 
     /******************\
     |* Self Functions *|
     \******************/
-    priv fun approveContractCall(params: ApproveContractCallParams) {
-        self._setContractCalApproved(commandId: params.commandId, sourceChain: params.sourceChain, sourceAddress: params.sourceAddress, contractAddress: params.contractAddress, payloadHash: params.payloadHash)
+    priv fun approveContractCall(commandId: String, params: ApproveContractCallParams) {
+        self._setContractCalApproved(commandId: commandId, sourceChain: params.sourceChain, sourceAddress: params.sourceAddress, contractAddress: params.contractAddress, payloadHash: params.payloadHash)
         emit ContractCallApproved(
-            commandId: params.commandId,
+            commandId: commandId,
             sourceChain: params.sourceChain,
             sourceAddress: params.sourceAddress,
             contractAddress: params.contractAddress,
@@ -220,11 +219,13 @@ pub contract AxelarGateway {
     |* Internal Setters *|
     \********************/
     priv fun _setContractCalApproved(commandId:String, sourceChain: String, sourceAddress: String, contractAddress: String, payloadHash: [UInt8]) {
-        EternalStorage._setBool(key: self._getIsContractCallApprovedKey(commandId: commandId, sourceChain: sourceChain, sourceAddress: sourceAddress, contractAddress: contractAddress, payloadHash: payloadHash), value: true)
+        let key = self._getIsContractCallApprovedKey(commandId: commandId, sourceChain: sourceChain, sourceAddress: sourceAddress, contractAddress: contractAddress, payloadHash: payloadHash)
+        self.boolStorage[key] = true
     }
 
     priv fun _setCommandExecuted(commandId: String, executed: Bool) {
-        EternalStorage._setBool(key: self._getIsCommandExecutedKey(commandId), value: executed)
+        let key = self._getIsCommandExecutedKey(commandId)
+        self.boolStorage[key] = executed
     }
 
     /**************************\
@@ -257,9 +258,8 @@ pub contract AxelarGateway {
         let payloadHash = params[3].isInstance(Type<[UInt8]>())
         let sourceTxHash = params[4].isInstance(Type<String>())
         let sourceEventIndex = params[5].isInstance(Type<UInt256>())
-        let commandId = params[6].isInstance(Type<String>())
 
-        if !sourceChain || !sourceAddress || !contractAddress || !payloadHash || !sourceTxHash || !sourceEventIndex || !commandId {
+        if !sourceChain || !sourceAddress || !contractAddress || !payloadHash || !sourceTxHash || !sourceEventIndex {
             return nil
         }
 
@@ -270,7 +270,6 @@ pub contract AxelarGateway {
             payloadHash : params[3] as! [UInt8],
             sourceTxHash : params[4] as! String,
             sourceEventIndex : params[5] as! UInt256,
-            commandId : params[6] as! String,
         )
     }
 
@@ -296,5 +295,8 @@ pub contract AxelarGateway {
         
         self.SELECTOR_TRANSFER_OPERATORSHIP = Crypto.hash("transferOperatorship".utf8, algorithm: HashAlgorithm.KECCAK_256)
         self.SELECTOR_APPROVE_CONTRACT_CALL = Crypto.hash("approveContractCall".utf8, algorithm: HashAlgorithm.KECCAK_256)
+
+        self.appCapabilities = {}
+        self.boolStorage = {}
     }
 }
