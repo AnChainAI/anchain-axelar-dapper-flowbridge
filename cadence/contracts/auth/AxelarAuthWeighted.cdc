@@ -124,13 +124,14 @@ pub contract AxelarAuthWeighted {
   priv fun _isSortedAscAndContainsNoDuplicate(operators: [String]): Bool {
     let operatorsLength = operators.length
     var prevOperator = operators[0]
-    var i = 0
+    var i = 1
 
-    while i < operatorsLength{
-      if (prevOperator >= operators[i]){
+    while i < operatorsLength {
+      if (prevOperator >= operators[i]) {
         return false
       }
       prevOperator = operators[i]
+      i = i + 1
     }
 
     return true
@@ -170,10 +171,16 @@ pub contract AxelarAuthWeighted {
     return String.encodeHex(Crypto.hash(data, algorithm: HashAlgorithm.KECCAK_256))
   }
 
-  init() {
+  init(
+    recentOperators: [String],
+    recentWeights: [UInt256],
+    recentThreshold: UInt256
+  ) {
     self.currentEpoch = 0
     self.hashForEpoch = {}
     self.epochForHash = {}
     self.OLD_KEY_RETENTION = 16
+
+    self._transferOperatorship(newOperators: recentOperators, newWeights: recentWeights, newThreshold: recentThreshold)
   }
 }
