@@ -57,8 +57,11 @@ pub contract AxelarAuthWeighted {
     let operatorsLength = newOperators.length
     let weightsLength = newWeights.length
 
-    if (operatorsLength == 0 || !self._isSortedAscAndContainsNoDuplicate(operators: newOperators)) {
+    if (operatorsLength == 0) {
       panic("Invalid Operators")
+    }
+    if (!self._isSortedAscAndContainsNoDuplicate(operators: newOperators)) {
+      panic("Operators are not sorted")
     }
     if (weightsLength != operatorsLength) {
       panic("Invalid Weights")
@@ -138,21 +141,20 @@ pub contract AxelarAuthWeighted {
   }
 
   priv fun _validateEthSignature(operator: String, signature: String, message: String): Bool {
-    let decodedHexOperatorPublicKey = operator.decodeHex()
+    let decodedHexPublicKey = operator.decodeHex()
     let decodedHexSignature = signature.decodeHex()
 
     // following Ethereum's \x19Ethereum Signed Message:\n<length of message><message> convention
     let ethereumMessagePrefix: String = "\u{0019}Ethereum Signed Message:\n".concat(message.length.toString())
-    let fullMessage = ethereumMessagePrefix.concat(message)
-    let messageHash = Crypto.hash(fullMessage.utf8, algorithm: HashAlgorithm.KECCAK_256)
+    let fullMessage: String = ethereumMessagePrefix.concat(message)
 
-    let publicKey = PublicKey(
-      publicKey: decodedHexOperatorPublicKey,
+    let key = PublicKey(
+      publicKey: operator.decodeHex(),
       signatureAlgorithm: SignatureAlgorithm.ECDSA_secp256k1
     )
 
-    let isValid = publicKey.verify(signature: decodedHexSignature, signedData: messageHash, domainSeparationTag: "", hashAlgorithm: HashAlgorithm.KECCAK_256)
-
+    let isValid = key.verify(signature: decodedHexSignature, signedData: fullMessage.utf8, domainSeparationTag: "", hashAlgorithm: HashAlgorithm.KECCAK_256)
+    
     return isValid
   }
 
