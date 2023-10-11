@@ -1,6 +1,5 @@
 import { AxelarAuthWeightedContract } from './contracts/axelar-auth-weighted.contract'
 import { IAxelarExecutableContract } from './contracts/i-axelar-executable.contract'
-import { EternalStorageContract } from './contracts/eternal-storage.contract'
 import { dataToHexEncodedMessage } from './utils/data-to-hex-encoded-message'
 import { AxelarGatewayContract } from './contracts/axelar-gateway.contract'
 import { Emulator, FlowAccount, EMULATOR_CONST } from '../utils/testing'
@@ -25,7 +24,7 @@ describe('AxelarGateway', () => {
   const user = wallets[0]
   const threshold = 7
   const operators = sortBy(wallets.slice(0, threshold), (wallet) =>
-    wallet.address.toLowerCase(),
+    wallet.signingKey.publicKey.slice(4),
   )
   let constants: FlowConstants
   let relayer: FlowAccount
@@ -56,21 +55,16 @@ describe('AxelarGateway', () => {
         args: {
           contractName: axelarAuthWeightedContract.name,
           contractCode: axelarAuthWeightedContract.code,
-          recentOperators: operators.map((o) => o.address.toLowerCase()),
+          recentOperators: operators.map((operator) =>
+            operator.signingKey.publicKey.slice(4),
+          ),
           recentWeights: operators.map(() => 1),
           recentThreshold: operators.length,
         },
         authz: admin.authz,
       })
       // Deploys dependent smart contracts to admin account
-      const eternalStorageContract = EternalStorageContract(admin.addr)
       const axelarGatewayContract = AxelarGatewayContract(admin.addr)
-      await deployContracts({
-        args: {
-          contracts: [eternalStorageContract],
-        },
-        authz: admin.authz,
-      })
       await deployContracts({
         args: {
           contracts: [axelarGatewayContract],
@@ -86,7 +80,6 @@ describe('AxelarGateway', () => {
       expect(deployedContracts).toEqual([
         'AxelarAuthWeighted',
         'AxelarGateway',
-        'EternalStorage',
         'IAxelarExecutable',
       ])
     })
@@ -155,44 +148,46 @@ describe('AxelarGateway', () => {
         ],
       )
 
-      const signatures = await Promise.all(
-        sortBy(operators, (wallet) => wallet.address.toLowerCase()).map(
-          (wallet) =>
-            wallet.signMessage(keccak256(encoder.encode(approveData))),
-        ),
+      const ethSignatures = await Promise.all(
+        sortBy(operators, (wallet) =>
+          wallet.signingKey.publicKey.toLowerCase(),
+        ).map((wallet) => wallet.signMessage(approveData)),
       )
+      const signatures = ethSignatures.map((ethSig) => {
+        const removedPrefix = ethSig.replace(/^0x/, '')
+        const sigObj = {
+          r: removedPrefix.slice(0, 64),
+          s: removedPrefix.slice(64, 128),
+        }
+        return sigObj.r + sigObj.s
+      })
 
-      // TODO: Generate a public key from EVM operators
-      const pubKey = operators[0].signingKey.publicKey.slice(4)
-      const hexKey = Buffer.from(pubKey).toString('hex')
-      console.log(hexKey)
+      const tx = await execute({
+        constants,
+        args: {
+          commandIds: [commandId],
+          commands: ['approveContractCall'],
+          params: [
+            [
+              sourceChain,
+              sourceAddress,
+              contractAddress,
+              payloadHash,
+              sourceTxHash,
+              sourceEventIndex.toString(),
+            ],
+          ],
+          operators: operators.map((operator) =>
+            operator.signingKey.publicKey.slice(4),
+          ),
+          weights: operators.map(() => 1),
+          threshold: operators.length,
+          signatures,
+        },
+        authz: relayer.authz,
+      })
 
-      // const tx = await execute({
-      //   constants,
-      //   args: {
-      //     commandIds: [commandId],
-      //     commands: ['approveContractCall'],
-      //     params: [
-      //       [
-      //         sourceChain,
-      //         sourceAddress,
-      //         contractAddress,
-      //         payloadHash,
-      //         sourceTxHash,
-      //         sourceEventIndex.toString(),
-      //       ],
-      //     ],
-      //     operators: operators.map((operator) =>
-      //       operator.address.toLowerCase(),
-      //     ),
-      //     weights: operators.map(() => 1),
-      //     threshold: operators.length,
-      //     signatures,
-      //   },
-      //   authz: relayer.authz,
-      // })
-
-      // console.log(JSON.stringify(tx, null, 2))
+      console.log(JSON.stringify(tx, null, 2))
     })
   })
 })
