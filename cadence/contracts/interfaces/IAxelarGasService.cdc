@@ -72,13 +72,5 @@ pub contract interface IAxelarGasService {
         amount: UInt256,
     ): Void
 
-    pub fun refund(
-        txHash: String,
-        logIndex: UInt256,
-        receiver: Address,
-        token: String,
-        amount: UInt256,
-    ): Void
-
     pub fun gasCollector(): Address
 }
