@@ -1,5 +1,5 @@
 import { AxelarAuthWeightedContract } from './contracts/axelar-auth-weighted.contract'
-import { IAxelarExecutableContract } from './contracts/i-axelar-executable.contract'
+import { getWeightedSignatureProof } from './utils/get-weighted-signatures-proof'
 import { dataToHexEncodedMessage } from './utils/data-to-hex-encoded-message'
 import { AxelarGatewayContract } from './contracts/axelar-gateway.contract'
 import { Emulator, FlowAccount, EMULATOR_CONST } from '../utils/testing'
@@ -43,14 +43,7 @@ describe('AxelarGateway', () => {
       constants = { ...EMULATOR_CONST, FLOW_ADMIN_ADDRESS: admin.addr }
 
       // Deploys independent smart contracts to admin account
-      const iAxelarExecutableContract = IAxelarExecutableContract()
       const axelarAuthWeightedContract = AxelarAuthWeightedContract()
-      await deployContracts({
-        args: {
-          contracts: [iAxelarExecutableContract],
-        },
-        authz: admin.authz,
-      })
       await deployAuthContract({
         args: {
           contractName: axelarAuthWeightedContract.name,
@@ -77,11 +70,7 @@ describe('AxelarGateway', () => {
         args: { address: admin.addr },
       })
 
-      expect(deployedContracts).toEqual([
-        'AxelarAuthWeighted',
-        'AxelarGateway',
-        'IAxelarExecutable',
-      ])
+      expect(deployedContracts).toEqual(['AxelarAuthWeighted', 'AxelarGateway'])
     })
   })
 
@@ -148,19 +137,7 @@ describe('AxelarGateway', () => {
         ],
       )
 
-      const ethSignatures = await Promise.all(
-        sortBy(operators, (wallet) =>
-          wallet.signingKey.publicKey.toLowerCase(),
-        ).map((wallet) => wallet.signMessage(approveData)),
-      )
-      const signatures = ethSignatures.map((ethSig) => {
-        const removedPrefix = ethSig.replace(/^0x/, '')
-        const sigObj = {
-          r: removedPrefix.slice(0, 64),
-          s: removedPrefix.slice(64, 128),
-        }
-        return sigObj.r + sigObj.s
-      })
+      const signatures = await getWeightedSignatureProof(approveData, operators)
 
       const tx = await execute({
         constants,
