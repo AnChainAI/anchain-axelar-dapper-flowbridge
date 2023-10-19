@@ -27,7 +27,7 @@ access(all) contract AxelarGateway {
     sender: Address,
     destinationChain: String,
     destinationContractAddress: String,
-    payloadHash: [UInt8],
+    payloadHash: String,
     payload: [UInt8]
   )
 
@@ -38,7 +38,7 @@ access(all) contract AxelarGateway {
     sourceChain: String,
     sourceAddress: String,
     contractAddress: String,
-    payloadHash: [UInt8],
+    payloadHash: String,
     sourceTxHash: String,
     sourceEventIndex: UInt256
   )
@@ -47,7 +47,7 @@ access(all) contract AxelarGateway {
     pub let sourceChain: String
     pub let sourceAddress: String
     pub let contractAddress: String
-    pub let payloadHash: [UInt8]
+    pub let payloadHash: String
     pub let sourceTxHash: String
     pub let sourceEventIndex: UInt256
 
@@ -55,7 +55,7 @@ access(all) contract AxelarGateway {
       sourceChain: String,
       sourceAddress: String,
       contractAddress: String,
-      payloadHash: [UInt8],
+      payloadHash: String,
       sourceTxHash: String,
       sourceEventIndex: UInt256,
     ) {
@@ -91,7 +91,7 @@ access(all) contract AxelarGateway {
       let sourceChain = self.rawParams[0].isInstance(Type<String>())
       let sourceAddress = self.rawParams[1].isInstance(Type<String>())
       let contractAddress = self.rawParams[2].isInstance(Type<String>())
-      let payloadHash = self.rawParams[3].isInstance(Type<[UInt8]>())
+      let payloadHash = self.rawParams[3].isInstance(Type<String>())
       let sourceTxHash = self.rawParams[4].isInstance(Type<String>())
       let sourceEventIndex = self.rawParams[5].isInstance(Type<UInt256>())
 
@@ -103,7 +103,7 @@ access(all) contract AxelarGateway {
         sourceChain : self.rawParams[0] as! String,
         sourceAddress : self.rawParams[1] as! String,
         contractAddress : self.rawParams[2] as! String,
-        payloadHash : self.rawParams[3] as! [UInt8],
+        payloadHash : self.rawParams[3] as! String,
         sourceTxHash : self.rawParams[4] as! String,
         sourceEventIndex : self.rawParams[5] as! UInt256,
       )
@@ -135,7 +135,7 @@ access(all) contract AxelarGateway {
       sender: sender,
       destinationChain: destinationChain,
       destinationContractAddress: destinationContractAddress,
-      payloadHash: Crypto.hash(payload, algorithm: HashAlgorithm.KECCAK_256),
+      payloadHash: String.encodeHex(Crypto.hash(payload, algorithm: HashAlgorithm.KECCAK_256)),
       payload: payload
     )
   }
@@ -143,7 +143,7 @@ access(all) contract AxelarGateway {
   access(all) fun execute(
     commandIds: [String],
     commands: [String],
-    params: [[String]],
+    params: [[AnyStruct]],
     operators: [String],
     weights: [UInt256],
     threshold: UInt256,
@@ -252,7 +252,7 @@ access(all) contract AxelarGateway {
     return isExecuted
   }
 
-  access(self) fun convertDataToHexEncodedMessage(commandIds: [String], commands: [String], params: [[String]]): String {
+  access(self) fun convertDataToHexEncodedMessage(commandIds: [String], commands: [String], params: [[AnyStruct]]): String {
     let message: [UInt8] = []
 
     for id in commandIds {
@@ -264,12 +264,33 @@ access(all) contract AxelarGateway {
     }
 
     for inputs in params {
-      for input in inputs {
-        message.appendAll(input.utf8)
-      }
+      message.appendAll(self.convertInputsToUtf8(inputs))
     }
 
     return String.encodeHex(message)
+  }
+
+  access(self) fun convertInputsToUtf8(_ inputs: [AnyStruct]): [UInt8] {
+    let convertedInput: [UInt8] = []
+
+    for input in inputs {
+      if input.isInstance(Type<String>()) {
+        let stringInput = input as! String
+        convertedInput.appendAll(stringInput.utf8)
+        continue
+      }
+      if input.isInstance(Type<UInt256>()) {
+        let uint256Input = input as! UInt256
+        convertedInput.appendAll(uint256Input.toString().utf8)
+        continue
+      }
+      if input.isInstance(Type<[AnyStruct]>()) {
+        let anyStructArrayInput = input as! [AnyStruct]
+        convertedInput.appendAll(self.convertInputsToUtf8(anyStructArrayInput))
+      }
+    }
+
+    return convertedInput
   }
 
   access(self) fun getAppCapabilityPathFromAddress(_ address: Address): StoragePath {
