@@ -7,9 +7,9 @@ export const AxelarGatewayContract = (
 ): ContractDetails => {
   return {
     name: 'AxelarGateway',
-    code: readFileSync(findFilePath('AxelarGateway.cdc'), 'utf8')
-      .replace('"./interfaces/IAxelarExecutable.cdc"', adminAddress)
-      .replace('"./auth/AxelarAuthWeighted.cdc"', adminAddress)
-      .replace('"./util/EternalStorage.cdc"', adminAddress),
+    code: readFileSync(findFilePath('AxelarGateway.cdc'), 'utf8').replace(
+      '"./auth/AxelarAuthWeighted.cdc"',
+      adminAddress,
+    ),
   }
 }

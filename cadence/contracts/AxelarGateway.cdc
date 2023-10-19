@@ -1,302 +1,287 @@
-import IAxelarExecutable from "./interfaces/IAxelarExecutable.cdc"
 import AxelarAuthWeighted from "./auth/AxelarAuthWeighted.cdc"
 import Crypto
 
-pub contract AxelarGateway {
-    priv let PREFIX_CONTRACT_CALL_APPROVED: [UInt8]
-    priv let PREFIX_COMMAND_EXECUTED: [UInt8]
+access(all) contract AxelarGateway {
+  access(self) let SELECTOR_APPROVE_CONTRACT_CALL: [UInt8]
+  access(self) let SELECTOR_TRANSFER_OPERATORSHIP: [UInt8]
+  access(self) let PREFIX_APP_CAPABILITY_PATH: String
 
-    priv let SELECTOR_APPROVE_CONTRACT_CALL: [UInt8]
-    priv let SELECTOR_TRANSFER_OPERATORSHIP: [UInt8]
+  access(all) resource CGPCommand {
+    access(all) var commandId: String
+    access(all) var isExecuted: Bool
 
-    priv let appCapabilities: {String: Capability<&{IAxelarExecutable.AxelarExecutable}>}
-    priv let boolStorage: {String: Bool}
-
-    /**********\
-    |* Events *|
-    \**********/
-    pub event ContractCall(
-        sender: Address,
-        destinationChain: String,
-        destinationContractAddress: String,
-        payloadHash: [UInt8],
-        payload: [UInt8]
-    )
-
-    pub event Executed(commandId: String)
-
-    pub event ContractCallApproved(
-        commandId: String,
-        sourceChain: String,
-        sourceAddress: String,
-        contractAddress: String,
-        payloadHash: [UInt8],
-        sourceTxHash: String,
-        sourceEventIndex: UInt256
-    )
-
-    pub struct ApproveContractCallParams {
-        pub let sourceChain: String
-        pub let sourceAddress: String
-        pub let contractAddress: String
-        pub let payloadHash: [UInt8]
-        pub let sourceTxHash: String
-        pub let sourceEventIndex: UInt256
-
-        init(
-            sourceChain: String,
-            sourceAddress: String,
-            contractAddress: String,
-            payloadHash: [UInt8],
-            sourceTxHash: String,
-            sourceEventIndex: UInt256,
-        ) {
-            self.sourceChain = sourceChain
-            self.sourceAddress = sourceAddress
-            self.contractAddress = contractAddress
-            self.payloadHash = payloadHash
-            self.sourceTxHash = sourceTxHash
-            self.sourceEventIndex = sourceEventIndex
-        }
+    destroy() {
+      emit Executed(commandId: self.commandId)
     }
 
-    /******************\
-    |* Public Methods *|
-    \******************/
-   pub fun callContract(sender: Address, destinationChain: String, destinationContractAddress: String, payload: [UInt8]) {
-        emit ContractCall(
-            sender: sender,
-            destinationChain: destinationChain,
-            destinationContractAddress: destinationContractAddress,
-            payloadHash: Crypto.hash(payload, algorithm: HashAlgorithm.KECCAK_256),
-            payload: payload
-        )
+    init(commandId: String) {
+      self.commandId = commandId
+      self.isExecuted = false
     }
+  }
 
-    pub fun isContractCallApproved(commandId: String, sourceChain: String, sourceAddress: String, contractAddress: String, payloadHash: [UInt8]): Bool {
-        let key = self._getIsContractCallApprovedKey(commandId: commandId, sourceChain: sourceChain, sourceAddress: sourceAddress, contractAddress: contractAddress, payloadHash: payloadHash)
-        return self.boolStorage[key] ?? false
-    }
+  /**********\
+  |* Events *|
+  \**********/
+  access(all) event ContractCall(
+    sender: Address,
+    destinationChain: String,
+    destinationContractAddress: String,
+    payloadHash: [UInt8],
+    payload: [UInt8]
+  )
 
-    pub fun validateContractCall(commandId: String, sourceChain: String, sourceAddress: String, contractAddress: String, payloadHash: [UInt8]): Bool {
-        let key = self._getIsContractCallApprovedKey(commandId: commandId, sourceChain: sourceChain, sourceAddress: sourceAddress, contractAddress: contractAddress, payloadHash: payloadHash)
-        let valid = self.boolStorage[key] ?? false
-        if valid == true {
-            self.boolStorage[key] = false
-        }
-        return valid
-    }
+  access(all) event Executed(commandId: String)
 
-    /***********\
-    |* Getters *|
-    \***********/
-    pub fun isCommandExecuted(commandId: String): Bool {
-        return self.boolStorage[self._getIsCommandExecutedKey(commandId)] ?? false
-    }
+  access(all) event ContractCallApproved(
+    commandId: String,
+    sourceChain: String,
+    sourceAddress: String,
+    contractAddress: String,
+    payloadHash: [UInt8],
+    sourceTxHash: String,
+    sourceEventIndex: UInt256
+  )
 
-    /**********************\
-    |* External Functions *|
-    \**********************/
-    pub fun execute(
-        commandIds: [String],
-        commands: [String],
-        params: [[String]],
-        operators: [String],
-        weights: [UInt256],
-        threshold: UInt256,
-        signatures: [String]
+  access(all) struct ApproveContractCallParams {
+    pub let sourceChain: String
+    pub let sourceAddress: String
+    pub let contractAddress: String
+    pub let payloadHash: [UInt8]
+    pub let sourceTxHash: String
+    pub let sourceEventIndex: UInt256
+
+    init(
+      sourceChain: String,
+      sourceAddress: String,
+      contractAddress: String,
+      payloadHash: [UInt8],
+      sourceTxHash: String,
+      sourceEventIndex: UInt256,
     ) {
-        let message = self._dataToHexEncodedMessage(commandIds: commandIds, commands: commands, params: params)
+      self.sourceChain = sourceChain
+      self.sourceAddress = sourceAddress
+      self.contractAddress = contractAddress
+      self.payloadHash = payloadHash
+      self.sourceTxHash = sourceTxHash
+      self.sourceEventIndex = sourceEventIndex
+    }
+  }
 
-        var allowOperatorshipTransfer = AxelarAuthWeighted.validateProof(message: message, operators: operators, weights: weights, threshold: threshold, signatures: signatures)
+  access(all) let executedCommandIds: [String]
+  access(self) let approvedCommands: @{String: CGPCommand}
 
-        let commandsLength = commandIds.length
-        
-        if (commandsLength != commands.length || commandsLength != params.length) {
-            panic("Invalid Commands")
-        }
+  init() {        
+    self.SELECTOR_TRANSFER_OPERATORSHIP = Crypto.hash("transferOperatorship".utf8, algorithm: HashAlgorithm.KECCAK_256)
+    self.SELECTOR_APPROVE_CONTRACT_CALL = Crypto.hash("approveContractCall".utf8, algorithm: HashAlgorithm.KECCAK_256)
+    self.PREFIX_APP_CAPABILITY_PATH = "AppCapabilityPath"
 
-        var i = 0
+    self.executedCommandIds = []
+    self.approvedCommands <- {}
+  }
 
-        while i < commandsLength {
-            let commandId = commandIds[i]
-            if (self.isCommandExecuted(commandId: commandId)) {
-                continue
-            }
+  access(all) struct ParamHandler {
+    access(all) let rawParams: [AnyStruct]
 
-            let commandHash = Crypto.hash(commands[i].utf8, algorithm: HashAlgorithm.KECCAK_256)
-
-            if (commandHash == self.SELECTOR_APPROVE_CONTRACT_CALL && params[i].length == 6) {
-                let approveParams = self._getApproveContractCallParams(params: params[i])
-
-                if approveParams != nil {
-                    self._setCommandExecuted(commandId: commandId, executed: true)
-                    self.approveContractCall(commandId: commandId, params: approveParams!)
-                    emit Executed(commandId: commandId)
-                } else {
-                    self._setCommandExecuted(commandId: commandId, executed: false)
-                }
-            } else if (commandHash == self.SELECTOR_TRANSFER_OPERATORSHIP && params[i].length == 3) {
-                if (!allowOperatorshipTransfer) {
-                    continue
-                }
-
-                allowOperatorshipTransfer = false
-                let transferParams = self._getTransferOperatorshipParams(params: params[i])
-                if transferParams != nil {
-                    self._setCommandExecuted(commandId: commandId, executed: true)
-                    AxelarAuthWeighted.transferOperatorship(params: transferParams!)
-                    emit Executed(commandId: commandId)
-                } else {
-                    self._setCommandExecuted(commandId: commandId, executed: false)
-                }
-            } else {
-                continue
-            }
-
-            i = i + 1
-        }
+    init(params: [AnyStruct]) {
+      self.rawParams = params
     }
 
-    pub fun executeApp(commandId: String, sourceChain: String, sourceAddress: String, contractAddress: String, payload: [UInt8]) {
-        let appCapability = self.appCapabilities[contractAddress]
+    access(contract) fun generateApproveContractCallParams(): ApproveContractCallParams? {
+      let sourceChain = self.rawParams[0].isInstance(Type<String>())
+      let sourceAddress = self.rawParams[1].isInstance(Type<String>())
+      let contractAddress = self.rawParams[2].isInstance(Type<String>())
+      let payloadHash = self.rawParams[3].isInstance(Type<[UInt8]>())
+      let sourceTxHash = self.rawParams[4].isInstance(Type<String>())
+      let sourceEventIndex = self.rawParams[5].isInstance(Type<UInt256>())
 
-        if appCapability == nil {
-            panic("AxelarExecutable Capability not found for ".concat(contractAddress))
-        }
+      if !sourceChain || !sourceAddress || !contractAddress || !payloadHash || !sourceTxHash || !sourceEventIndex {
+        return nil
+      }
 
-        let payloadHash = Crypto.hash(payload, algorithm: HashAlgorithm.KECCAK_256)
-
-        if (!self.validateContractCall(commandId: commandId, sourceChain: sourceChain, sourceAddress: sourceAddress, contractAddress: contractAddress, payloadHash: payloadHash)) {
-            panic("Not approved by gateway")
-        }
-
-        let executeCapability = appCapability!.borrow()
-        if (executeCapability == nil) {
-            panic("Could not borrow execute capability")
-        }
-
-        executeCapability!.execute(sourceChain: sourceChain, sourceAddress: sourceAddress, payload: payload)
+      return ApproveContractCallParams(
+        sourceChain : self.rawParams[0] as! String,
+        sourceAddress : self.rawParams[1] as! String,
+        contractAddress : self.rawParams[2] as! String,
+        payloadHash : self.rawParams[3] as! [UInt8],
+        sourceTxHash : self.rawParams[4] as! String,
+        sourceEventIndex : self.rawParams[5] as! UInt256,
+      )
     }
 
-    pub fun onboardApp(_ executeCapability: Capability<&{IAxelarExecutable.AxelarExecutable}>) {
-        pre {
-            executeCapability.check(): "Invalid capability"
-        }
+    access(contract) fun generateTransferOperatorshipParams(): AxelarAuthWeighted.TransferOperatorshipParams? {
+      let newOperators = self.rawParams[0].isInstance(Type<[String]>())
+      let newWeights = self.rawParams[1].isInstance(Type<[UInt256]>())
+      let newThreshold = self.rawParams[2].isInstance(Type<UInt256>())
 
-        self.appCapabilities[executeCapability.address.toString()] = executeCapability
+      if !newOperators || !newWeights || !newThreshold {
+        return nil
+      }
+
+      return AxelarAuthWeighted.TransferOperatorshipParams(
+        newOperators : self.rawParams[0] as! [String],
+        newWeights : self.rawParams[1] as! [UInt256],
+        newThreshold : self.rawParams[2] as! UInt256,
+      )
+    }
+  }
+
+  access(all) resource interface Executable {
+    access(all) fun executeApp(commandResource: &AxelarGateway.CGPCommand, sourceChain: String, sourceAddress: String, payload: [UInt8])
+  }
+
+  access(all) fun callContract(sender: Address, destinationChain: String, destinationContractAddress: String, payload: [UInt8]) {
+    emit ContractCall(
+      sender: sender,
+      destinationChain: destinationChain,
+      destinationContractAddress: destinationContractAddress,
+      payloadHash: Crypto.hash(payload, algorithm: HashAlgorithm.KECCAK_256),
+      payload: payload
+    )
+  }
+
+  access(all) fun execute(
+    commandIds: [String],
+    commands: [String],
+    params: [[String]],
+    operators: [String],
+    weights: [UInt256],
+    threshold: UInt256,
+    signatures: [String]
+  ) {
+    let encodedMessage = self.convertDataToHexEncodedMessage(commandIds: commandIds, commands: commands, params: params)
+
+    var allowOperatorshipTransfer = AxelarAuthWeighted.validateProof(message: encodedMessage, operators: operators, weights: weights, threshold: threshold, signatures: signatures)
+
+    let commandsLength = commandIds.length
+      
+    if (commandsLength != commands.length || commandsLength != params.length) {
+      panic("Invalid Commands")
     }
 
-    /******************\
-    |* Self Functions *|
-    \******************/
-    priv fun approveContractCall(commandId: String, params: ApproveContractCallParams) {
-        self._setContractCalApproved(commandId: commandId, sourceChain: params.sourceChain, sourceAddress: params.sourceAddress, contractAddress: params.contractAddress, payloadHash: params.payloadHash)
-        emit ContractCallApproved(
+    var i = 0
+
+    while i < commandsLength {
+      var commandId = commandIds[i]
+      if (self.executedCommandIds.contains(commandId)) {
+        continue
+      }
+
+      let commandHash = Crypto.hash(commands[i].utf8, algorithm: HashAlgorithm.KECCAK_256)
+      let paramHandler = ParamHandler(params: params[i])
+
+      // Transfer OperatorShip is the only command that is directly processed by this contract - unlike other commannds
+      // it is used for managing gateway operators for the Axelar CGP protocol
+      if (commandHash == self.SELECTOR_TRANSFER_OPERATORSHIP && params[i].length == 3) {
+        var allowOperatorshipTransfer = AxelarAuthWeighted.validateProof(message: encodedMessage, operators: operators, weights: weights, threshold: threshold, signatures: signatures)
+
+        if (allowOperatorshipTransfer) {
+          var transferOperatorShipParams = paramHandler.generateTransferOperatorshipParams()
+
+          if transferOperatorShipParams != nil {
+
+            // we only need to track this was executed, since there's no other processing for this command
+            self.executedCommandIds.append(commandId)
+            AxelarAuthWeighted.transferOperatorship(params: transferOperatorShipParams!)
+            emit Executed(commandId: commandId)
+          }
+        }
+      } else if (commandHash == self.SELECTOR_APPROVE_CONTRACT_CALL && params[i].length == 6) {
+        let approveContractCallParams = paramHandler.generateApproveContractCallParams()
+
+        if approveContractCallParams != nil {
+          // store the CGPCommand Resource for later use
+          let oldCgpCommand <- self.approvedCommands[commandId] <- create CGPCommand(commandId: commandId)
+
+          emit ContractCallApproved (
             commandId: commandId,
-            sourceChain: params.sourceChain,
-            sourceAddress: params.sourceAddress,
-            contractAddress: params.contractAddress,
-            payloadHash: params.payloadHash,
-            sourceTxHash: params.sourceTxHash,
-            sourceEventIndex: params.sourceEventIndex
-        )
-    }
+            sourceChain: approveContractCallParams!.sourceChain,
+            sourceAddress: approveContractCallParams!.sourceAddress,
+            contractAddress: approveContractCallParams!.contractAddress,
+            payloadHash: approveContractCallParams!.payloadHash,
+            sourceTxHash: approveContractCallParams!.sourceTxHash,
+            sourceEventIndex: approveContractCallParams!.sourceEventIndex
+          )
 
-    /********************\
-    |* Internal Getters *|
-    \********************/
-    priv fun _getIsCommandExecutedKey(_ commandId: String): String {
-        return String.encodeHex(Crypto.hash(self.PREFIX_COMMAND_EXECUTED.concat(commandId.utf8), algorithm: HashAlgorithm.KECCAK_256))
-    }
-
-    priv fun _getIsContractCallApprovedKey(commandId: String, sourceChain: String, sourceAddress: String, contractAddress: String, payloadHash: [UInt8]): String {
-        let hashedData = Crypto.hash(self.PREFIX_CONTRACT_CALL_APPROVED.concat(commandId.utf8).concat(sourceChain.utf8).concat(sourceAddress.utf8).concat(contractAddress.utf8).concat(payloadHash), algorithm: HashAlgorithm.KECCAK_256)
-        return String.encodeHex(hashedData)
-    }
-
-    /********************\
-    |* Internal Setters *|
-    \********************/
-    priv fun _setContractCalApproved(commandId:String, sourceChain: String, sourceAddress: String, contractAddress: String, payloadHash: [UInt8]) {
-        let key = self._getIsContractCallApprovedKey(commandId: commandId, sourceChain: sourceChain, sourceAddress: sourceAddress, contractAddress: contractAddress, payloadHash: payloadHash)
-        self.boolStorage[key] = true
-    }
-
-    priv fun _setCommandExecuted(commandId: String, executed: Bool) {
-        let key = self._getIsCommandExecutedKey(commandId)
-        self.boolStorage[key] = executed
-    }
-
-    /**************************\
-    |* Internal Functionality *|
-    \**************************/
-    priv fun _dataToHexEncodedMessage(commandIds: [String], commands: [String], params: [[String]]): String {
-        let message: [UInt8] = []
-
-        for id in commandIds {
-            message.appendAll(id.utf8)
+          destroy oldCgpCommand
         }
+      } else {
+        continue
+      }
 
-        for command in commands {
-            message.appendAll(command.utf8)
-        }
+      i = i + 1
+    }
+  }
 
-        for inputs in params {
-            for input in inputs {
-                message.appendAll(input.utf8)
-            }
-        }
-
-        return String.encodeHex(message)
+  access(all) fun executeApp(commandId: String, sourceChain: String, sourceAddress: String, contractAddress: String, payload: [UInt8]): Bool {
+    // Check to see if command id has already been executed
+    if (self.executedCommandIds.contains(commandId)) {
+      return false
     }
 
-    priv fun _getApproveContractCallParams(params: [AnyStruct]): ApproveContractCallParams? {
-        let sourceChain = params[0].isInstance(Type<String>())
-        let sourceAddress = params[1].isInstance(Type<String>())
-        let contractAddress = params[2].isInstance(Type<String>())
-        let payloadHash = params[3].isInstance(Type<[UInt8]>())
-        let sourceTxHash = params[4].isInstance(Type<String>())
-        let sourceEventIndex = params[5].isInstance(Type<UInt256>())
+    // Validate that contract address string is a valid address
+    let address = Address.fromString(contractAddress) ?? panic("Invalid address")
 
-        if !sourceChain || !sourceAddress || !contractAddress || !payloadHash || !sourceTxHash || !sourceEventIndex {
-            return nil
-        }
-
-        return ApproveContractCallParams(
-            sourceChain : params[0] as! String,
-            sourceAddress : params[1] as! String,
-            contractAddress : params[2] as! String,
-            payloadHash : params[3] as! [UInt8],
-            sourceTxHash : params[4] as! String,
-            sourceEventIndex : params[5] as! UInt256,
-        )
+    // Verify that the executable capability exists for that contract address
+    let appCapability: &Capability<&{AxelarGateway.Executable}>? = self.account.borrow<&Capability<&{AxelarGateway.Executable}>>(from: self.getAppCapabilityPathFromAddress(address)) ?? self.claimAppCapability(provider: address)
+    if appCapability == nil || !appCapability!.check() {
+      panic("Cannot retrieve app executable capability")
     }
 
-    priv fun _getTransferOperatorshipParams(params: [AnyStruct]): AxelarAuthWeighted.TransferOperatorshipParams? {
-        let newOperators = params[0].isInstance(Type<[String]>())
-        let newWeights = params[1].isInstance(Type<[UInt256]>())
-        let newThreshold = params[2].isInstance(Type<UInt256>())
-
-        if !newOperators || !newWeights || !newThreshold {
-            return nil
-        }
-
-        return AxelarAuthWeighted.TransferOperatorshipParams(
-            newOperators : params[0] as! [String],
-            newWeights : params[1] as! [UInt256],
-            newThreshold : params[2] as! UInt256,
-        )
+    // Ensure that the command id is approved
+    if self.approvedCommands[commandId] == nil {
+      panic("Command with id: ".concat(commandId).concat(" does not exist"))
     }
 
-    init() {
-        self.PREFIX_CONTRACT_CALL_APPROVED = Crypto.hash("contract-call-approved".utf8, algorithm: HashAlgorithm.KECCAK_256)
-        self.PREFIX_COMMAND_EXECUTED = Crypto.hash("command-executed".utf8, algorithm: HashAlgorithm.KECCAK_256)
-        
-        self.SELECTOR_TRANSFER_OPERATORSHIP = Crypto.hash("transferOperatorship".utf8, algorithm: HashAlgorithm.KECCAK_256)
-        self.SELECTOR_APPROVE_CONTRACT_CALL = Crypto.hash("approveContractCall".utf8, algorithm: HashAlgorithm.KECCAK_256)
+    // Get a reference to the CGPCommand resource to pass into the executable method
+    let cgpCommand = (&self.approvedCommands[commandId] as &CGPCommand?) ?? panic("Could not borrow reference to CGP Command")
 
-        self.appCapabilities = {}
-        self.boolStorage = {}
+    // Ensure that this cgp command has not been executed before
+    var isExecuted = cgpCommand.isExecuted
+    if !isExecuted {
+      let ref = appCapability!.borrow()!.executeApp(commandResource: cgpCommand, sourceChain: sourceChain, sourceAddress: sourceAddress, payload: payload)
+
+      // Remove the cgp command resource and destroy the resource
+      destroy <- self.approvedCommands.remove(key: commandId)
+
+      // Record the executed command id
+      self.executedCommandIds.append(commandId)
+      isExecuted = true
     }
+
+    return isExecuted
+  }
+
+  access(self) fun convertDataToHexEncodedMessage(commandIds: [String], commands: [String], params: [[String]]): String {
+    let message: [UInt8] = []
+
+    for id in commandIds {
+      message.appendAll(id.utf8)
+    }
+
+    for command in commands {
+      message.appendAll(command.utf8)
+    }
+
+    for inputs in params {
+      for input in inputs {
+        message.appendAll(input.utf8)
+      }
+    }
+
+    return String.encodeHex(message)
+  }
+
+  access(self) fun getAppCapabilityPathFromAddress(_ address: Address): StoragePath {
+    return StoragePath(identifier: self.PREFIX_APP_CAPABILITY_PATH.concat(address.toString())) ?? panic("Could not get app capability path for address ".concat(address.toString()))
+  }
+
+  access(self) fun claimAppCapability(provider: Address): &Capability<&{AxelarGateway.Executable}>? {
+    if let appCapability = self.account.inbox.claim<&{AxelarGateway.Executable}>(self.PREFIX_APP_CAPABILITY_PATH.concat(provider.toString()), provider: provider) {
+      self.account.save(appCapability, to: self.getAppCapabilityPathFromAddress(provider))
+      return self.account.borrow<&Capability<&{AxelarGateway.Executable}>>(from: self.getAppCapabilityPathFromAddress(provider))
+    }
+    
+    return nil
+  }
 }
