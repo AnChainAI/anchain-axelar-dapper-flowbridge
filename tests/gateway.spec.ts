@@ -138,7 +138,6 @@ describe('AxelarGateway', () => {
       )
 
       const signatures = await getWeightedSignatureProof(approveData, operators)
-
       const tx = await execute({
         constants,
         args: {
@@ -164,7 +163,22 @@ describe('AxelarGateway', () => {
         authz: relayer.authz,
       })
 
-      console.log(JSON.stringify(tx, null, 2))
+      expect(tx.events).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            type: `A.${admin.addr.slice(2)}.AxelarGateway.ContractCallApproved`,
+            data: expect.objectContaining({
+              commandId,
+              sourceChain,
+              sourceAddress,
+              contractAddress,
+              payloadHash,
+              sourceTxHash,
+              sourceEventIndex: sourceEventIndex.toString(),
+            }),
+          }),
+        ]),
+      )
     })
   })
 })
