@@ -4,7 +4,7 @@ import Crypto
 access(all) contract AxelarGateway {
   access(self) let SELECTOR_APPROVE_CONTRACT_CALL: [UInt8]
   access(self) let SELECTOR_TRANSFER_OPERATORSHIP: [UInt8]
-  access(self) let PREFIX_APP_CAPABILITY_PATH: String
+  access(all) let PREFIX_APP_CAPABILITY_PATH: String
 
   access(all) resource CGPCommand {
     access(all) var commandId: String
@@ -173,7 +173,6 @@ access(all) contract AxelarGateway {
       // Transfer OperatorShip is the only command that is directly processed by this contract - unlike other commannds
       // it is used for managing gateway operators for the Axelar CGP protocol
       if (commandHash == self.SELECTOR_TRANSFER_OPERATORSHIP && params[i].length == 3) {
-        var allowOperatorshipTransfer = AxelarAuthWeighted.validateProof(message: encodedMessage, operators: operators, weights: weights, threshold: threshold, signatures: signatures)
 
         if (allowOperatorshipTransfer) {
           var transferOperatorShipParams = paramHandler.generateTransferOperatorshipParams()
