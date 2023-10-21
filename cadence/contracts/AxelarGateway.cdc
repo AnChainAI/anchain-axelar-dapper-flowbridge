@@ -4,7 +4,7 @@ import Crypto
 access(all) contract AxelarGateway {
   access(self) let SELECTOR_APPROVE_CONTRACT_CALL: [UInt8]
   access(self) let SELECTOR_TRANSFER_OPERATORSHIP: [UInt8]
-  access(all) let PREFIX_APP_CAPABILITY_PATH: String
+  access(all) let PREFIX_APP_CAPABILITY_NAME: String
 
   access(all) resource CGPCommand {
     access(all) var commandId: String
@@ -74,7 +74,7 @@ access(all) contract AxelarGateway {
   init() {        
     self.SELECTOR_TRANSFER_OPERATORSHIP = Crypto.hash("transferOperatorship".utf8, algorithm: HashAlgorithm.KECCAK_256)
     self.SELECTOR_APPROVE_CONTRACT_CALL = Crypto.hash("approveContractCall".utf8, algorithm: HashAlgorithm.KECCAK_256)
-    self.PREFIX_APP_CAPABILITY_PATH = "AppCapabilityPath"
+    self.PREFIX_APP_CAPABILITY_NAME = "AppCapabilityPath"
 
     self.executedCommandIds = []
     self.approvedCommands <- {}
@@ -293,11 +293,11 @@ access(all) contract AxelarGateway {
   }
 
   access(self) fun getAppCapabilityPathFromAddress(_ address: Address): StoragePath {
-    return StoragePath(identifier: self.PREFIX_APP_CAPABILITY_PATH.concat(address.toString())) ?? panic("Could not get app capability path for address ".concat(address.toString()))
+    return StoragePath(identifier: self.PREFIX_APP_CAPABILITY_NAME.concat(address.toString())) ?? panic("Could not get app capability path for address ".concat(address.toString()))
   }
 
   access(self) fun claimAppCapability(provider: Address): &Capability<&{AxelarGateway.Executable}>? {
-    if let appCapability = self.account.inbox.claim<&{AxelarGateway.Executable}>(self.PREFIX_APP_CAPABILITY_PATH.concat(provider.toString()), provider: provider) {
+    if let appCapability = self.account.inbox.claim<&{AxelarGateway.Executable}>(self.PREFIX_APP_CAPABILITY_NAME.concat(provider.toString()), provider: provider) {
       self.account.save(appCapability, to: self.getAppCapabilityPathFromAddress(provider))
       return self.account.borrow<&Capability<&{AxelarGateway.Executable}>>(from: self.getAppCapabilityPathFromAddress(provider))
     }

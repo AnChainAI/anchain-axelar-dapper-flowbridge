@@ -12,7 +12,7 @@ transaction(recipient: Address) {
     if !acct.getCapability<&{AxelarGateway.Executable}>(/private/AxelarExecutable).check() {
       let axelarExecutableCap = acct.link<&{AxelarGateway.Executable}>(/private/AxelarExecutable, target: /storage/AxelarExecutable)
       if (axelarExecutableCap != nil) {
-        acct.inbox.publish(axelarExecutableCap!, name: AxelarGateway.PREFIX_APP_CAPABILITY_PATH.concat(acct.address.toString()), recipient: recipient)
+        acct.inbox.publish(axelarExecutableCap!, name: AxelarGateway.PREFIX_APP_CAPABILITY_NAME.concat(acct.address.toString()), recipient: recipient)
       } else {
         panic("Could not create Axelar Executable capability")
       }
