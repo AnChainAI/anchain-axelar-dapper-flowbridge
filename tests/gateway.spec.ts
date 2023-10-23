@@ -17,7 +17,17 @@ import { randomUUID } from 'crypto'
 import { ethers } from 'hardhat'
 import { sortBy } from 'lodash'
 
-// npm test -- gateway.spec.ts
+/**
+ * To setup the testing, make sure you've run
+ * the following command to start the flow emulator on a separate terminal:
+ *
+ *  flow emulator
+ *
+ * To run this testing suite, open a different terminal
+ * from the flow emulator terminal, and run the following command:
+ *
+ *  npm test -- gateway.spec.ts
+ */
 describe('AxelarGateway', () => {
   const defaultAbiCoder = ethers.AbiCoder.defaultAbiCoder()
   const wallets = Array.from({ length: 10 }).map(() =>
