@@ -140,6 +140,10 @@ access(all) contract AxelarGateway {
     )
   }
 
+  access(all) fun isCommandExecuted(commandId: String): Bool {
+    return self.executedCommandIds.contains(commandId)
+  }
+
   access(all) fun execute(
     commandIds: [String],
     commands: [String],
