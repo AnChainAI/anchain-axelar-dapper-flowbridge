@@ -1,6 +1,7 @@
 import AxelarAuthWeighted from "./auth/AxelarAuthWeighted.cdc"
 import Crypto
 
+// Main GateWay contract for audit
 access(all) contract AxelarGateway {
   access(self) let SELECTOR_APPROVE_CONTRACT_CALL: [UInt8]
   access(self) let SELECTOR_TRANSFER_OPERATORSHIP: [UInt8]

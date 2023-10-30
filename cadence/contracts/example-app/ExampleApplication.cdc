@@ -1,5 +1,7 @@
 import AxelarGateway from "../AxelarGateway.cdc"
 
+// This is an example dApp contract that is connected to the
+// GateWay for General Message Passing between blockchains
 access(all) contract ExampleApplication {
   access(self) let approvedCommands: {String: GMPData}
 

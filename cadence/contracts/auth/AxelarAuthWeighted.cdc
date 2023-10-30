@@ -1,5 +1,6 @@
 import Crypto
 
+// Main Auth Weighted contract for audit
 pub contract AxelarAuthWeighted {
   pub var currentEpoch: UInt256
   pub let hashForEpoch: {UInt256: String}
