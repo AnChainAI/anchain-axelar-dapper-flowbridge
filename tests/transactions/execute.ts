@@ -1,3 +1,4 @@
+import { wrapInputParams } from '../utils/wrap-input-params'
 import {
   TransactionFunctionParams,
   sendTransaction,
@@ -10,7 +11,7 @@ import AxelarGateway from ${constants.FLOW_ADMIN_ADDRESS}
 transaction(
   commandIds: [String],
   commands: [String],
-  params: [[String]],
+  params: [[AnyStruct]],
   operators: [String],
   weights: [UInt256],
   threshold: UInt256,
@@ -25,7 +26,7 @@ transaction(
 export interface ExecuteArgs {
   readonly commandIds: string[]
   readonly commands: string[]
-  readonly params: string[][]
+  readonly params: (string | string[])[][]
   readonly operators: string[]
   readonly weights: number[]
   readonly threshold: number
@@ -35,18 +36,21 @@ export interface ExecuteArgs {
 export async function execute(params: TransactionFunctionParams<ExecuteArgs>) {
   return await sendTransaction({
     cadence: CODE(params.constants),
-    args: (arg, t) => [
-      arg(params.args.commandIds, t.Array(t.String)),
-      arg(params.args.commands, t.Array(t.String)),
-      arg(params.args.params, t.Array(t.Array(t.String))),
-      arg(params.args.operators, t.Array(t.String)),
-      arg(
-        params.args.weights.map((n) => n.toString()),
-        t.Array(t.UInt256),
-      ),
-      arg(params.args.threshold.toString(), t.UInt256),
-      arg(params.args.signatures, t.Array(t.String)),
-    ],
+    args: (arg, t) => {
+      const { datas, types } = wrapInputParams(params.args.params)
+      return [
+        arg(params.args.commandIds, t.Array(t.String)),
+        arg(params.args.commands, t.Array(t.String)),
+        arg(datas, t.Array(types)),
+        arg(params.args.operators, t.Array(t.String)),
+        arg(
+          params.args.weights.map((n) => n.toString()),
+          t.Array(t.UInt256),
+        ),
+        arg(params.args.threshold.toString(), t.UInt256),
+        arg(params.args.signatures, t.Array(t.String)),
+      ]
+    },
     authorizations: [],
     payer: params.authz,
     proposer: params.authz,
