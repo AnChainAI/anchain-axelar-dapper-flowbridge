@@ -1,23 +1,23 @@
 import Crypto
 
 // Main Auth Weighted contract for audit
-pub contract AxelarAuthWeighted {
-  pub var currentEpoch: UInt256
-  pub let hashForEpoch: {UInt256: String}
-  pub let epochForHash: {String: UInt256}
+access(all) contract AxelarAuthWeighted {
+  access(all) var currentEpoch: UInt256
+  access(all) let hashForEpoch: {UInt256: String}
+  access(all) let epochForHash: {String: UInt256}
 
-  priv let OLD_KEY_RETENTION: UInt256
+  access(self) let OLD_KEY_RETENTION: UInt256
 
-  pub event OperatorshipTransferred(
+  access(all) event OperatorshipTransferred(
     newOperators: [String],
     newWeights: [UInt256],
     newThreshold: UInt256
   )
 
-  pub struct TransferOperatorshipParams {
-    pub let newOperators: [String]
-    pub let newWeights: [UInt256]
-    pub let newThreshold: UInt256
+  access(all) struct TransferOperatorshipParams {
+    access(all) let newOperators: [String]
+    access(all) let newWeights: [UInt256]
+    access(all) let newThreshold: UInt256
 
     init(newOperators: [String], newWeights: [UInt256], newThreshold: UInt256) {
         self.newOperators = newOperators
@@ -29,7 +29,7 @@ pub contract AxelarAuthWeighted {
   /**************************\
   |* External Functionality *|
   \**************************/
-  pub fun validateProof(message: String, operators: [String], weights: [UInt256], threshold: UInt256, signatures: [String]): Bool {
+  access(all) fun validateProof(message: String, operators: [String], weights: [UInt256], threshold: UInt256, signatures: [String]): Bool {
     let operatorsHash = self._operatorsToHash(operators: operators, weights: weights, threshold: threshold)
     let operatorsEpoch = self.epochForHash[operatorsHash]
     let epoch = self.currentEpoch
@@ -54,7 +54,7 @@ pub contract AxelarAuthWeighted {
   /**************************\
   |* Internal Functionality *|
   \**************************/
-  priv fun _transferOperatorship(newOperators: [String], newWeights: [UInt256], newThreshold: UInt256) {
+  access(self) fun _transferOperatorship(newOperators: [String], newWeights: [UInt256], newThreshold: UInt256) {
     let operatorsLength = newOperators.length
     let weightsLength = newWeights.length
 
@@ -88,7 +88,7 @@ pub contract AxelarAuthWeighted {
     self.epochForHash[newOperatorsHash] = epoch
   }
 
-  priv fun _validateSignatures(message: String, operators: [String], weights: [UInt256], threshold: UInt256, signatures: [String]) {
+  access(self) fun _validateSignatures(message: String, operators: [String], weights: [UInt256], threshold: UInt256, signatures: [String]) {
     let operatorsLength = operators.length
     let signaturesLength = signatures.length
     var operatorIndex = 0
@@ -125,7 +125,7 @@ pub contract AxelarAuthWeighted {
     panic("Low Signatures Weight")
   }
 
-  priv fun _isSortedAscAndContainsNoDuplicate(operators: [String]): Bool {
+  access(self) fun _isSortedAscAndContainsNoDuplicate(operators: [String]): Bool {
     let operatorsLength = operators.length
     var prevOperator = operators[0]
     var i = 1
@@ -141,7 +141,7 @@ pub contract AxelarAuthWeighted {
     return true
   }
 
-  priv fun _validateEthSignature(operator: String, signature: String, message: String): Bool {
+  access(self) fun _validateEthSignature(operator: String, signature: String, message: String): Bool {
     let decodedHexPublicKey = operator.decodeHex()
     let decodedHexSignature = signature.decodeHex()
 
@@ -159,7 +159,7 @@ pub contract AxelarAuthWeighted {
     return isValid
   }
 
-  priv fun _operatorsToHash(operators: [String], weights: [UInt256], threshold: UInt256): String {
+  access(self) fun _operatorsToHash(operators: [String], weights: [UInt256], threshold: UInt256): String {
     let data: [UInt8] = []
     for operator in operators {
       data.appendAll(operator.utf8)
