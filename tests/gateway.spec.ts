@@ -30,6 +30,7 @@ import { sortBy } from 'lodash'
  */
 describe('AxelarGateway', () => {
   const defaultAbiCoder = ethers.AbiCoder.defaultAbiCoder()
+  const utilsAddress = '0xf8d6e0586b0a20c7'
   const wallets = Array.from({ length: 10 }).map(() =>
     ethers.Wallet.createRandom(),
   )
@@ -72,7 +73,10 @@ describe('AxelarGateway', () => {
         authz: admin.authz,
       })
       // Deploys dependent smart contracts to admin account
-      const axelarGatewayContract = AxelarGatewayContract(admin.addr)
+      const axelarGatewayContract = AxelarGatewayContract(
+        admin.addr,
+        utilsAddress,
+      )
       await deployContracts({
         args: {
           contracts: [axelarGatewayContract],
