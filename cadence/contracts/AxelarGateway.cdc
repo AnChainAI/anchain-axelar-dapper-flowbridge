@@ -1,4 +1,5 @@
 import AxelarAuthWeighted from "./auth/AxelarAuthWeighted.cdc"
+import AddressUtils from "./standard/AddressUtils.cdc"
 import Crypto
 
 // Main GateWay contract for audit
@@ -10,10 +11,6 @@ access(all) contract AxelarGateway {
   access(all) resource CGPCommand {
     access(all) var commandId: String
     access(all) var isExecuted: Bool
-
-    destroy() {
-      emit Executed(commandId: self.commandId)
-    }
 
     init(commandId: String) {
       self.commandId = commandId
@@ -131,9 +128,15 @@ access(all) contract AxelarGateway {
     access(all) fun executeApp(commandResource: &AxelarGateway.CGPCommand, sourceChain: String, sourceAddress: String, payload: [UInt8])
   }
 
-  access(all) fun callContract(sender: Address, destinationChain: String, destinationContractAddress: String, payload: [UInt8]) {
+  access(all) resource interface SenderIdentity {}
+
+  access(all) fun callContract(senderIdentity: Capability<&{AxelarGateway.SenderIdentity}>, destinationChain: String, destinationContractAddress: String, payload: [UInt8]) {
+    pre {
+      senderIdentity.check() && senderIdentity.borrow()!.owner != nil: "Cannot borrow reference to SenderIdentity capability"
+    }
+
     emit ContractCall(
-      sender: sender,
+      sender: senderIdentity.address,
       destinationChain: destinationChain,
       destinationContractAddress: destinationContractAddress,
       payloadHash: String.encodeHex(Crypto.hash(payload, algorithm: HashAlgorithm.KECCAK_256)),
@@ -207,7 +210,7 @@ access(all) contract AxelarGateway {
             sourceEventIndex: approveContractCallParams!.sourceEventIndex
           )
 
-          destroy oldCgpCommand
+          self.destroyCGPCommand(cgpCommand: <- oldCgpCommand)
         }
       } else {
         continue
@@ -223,11 +226,16 @@ access(all) contract AxelarGateway {
       return false
     }
 
-    // Validate that contract address string is a valid address
-    let address = Address.fromString(contractAddress) ?? panic("Invalid address")
+    // Validate that contract address string is a valid address for current network
+    let address = self.parseAddressForCurrentNetwork(contractAddress)
 
     // Verify that the executable capability exists for that contract address
-    let appCapability: &Capability<&{AxelarGateway.Executable}>? = self.account.borrow<&Capability<&{AxelarGateway.Executable}>>(from: self.getAppCapabilityPathFromAddress(address)) ?? self.claimAppCapability(provider: address)
+    let capabilityPath = self.getAppCapabilityStoragePath(address) ?? panic("Could not get app capability path for address ".concat(address.toString()))
+    var appCapability: &Capability<&{AxelarGateway.Executable}>? = self.account.borrow<&Capability<&{AxelarGateway.Executable}>>(from: capabilityPath)
+    if appCapability?.check() != true {
+      appCapability = self.claimAppCapability(provider: address)
+    }
+
     if appCapability == nil || !appCapability!.check() {
       panic("Cannot retrieve app executable capability")
     }
@@ -246,7 +254,7 @@ access(all) contract AxelarGateway {
       let ref = appCapability!.borrow()!.executeApp(commandResource: cgpCommand, sourceChain: sourceChain, sourceAddress: sourceAddress, payload: payload)
 
       // Remove the cgp command resource and destroy the resource
-      destroy <- self.approvedCommands.remove(key: commandId)
+      self.destroyCGPCommand(cgpCommand: <- self.approvedCommands.remove(key: commandId))
 
       // Record the executed command id
       self.executedCommandIds.append(commandId)
@@ -254,6 +262,18 @@ access(all) contract AxelarGateway {
     }
 
     return isExecuted
+  }
+
+  access(all) fun getAppCapabilityStoragePath(_ address: Address): StoragePath? {
+    return StoragePath(identifier: self.PREFIX_APP_CAPABILITY_NAME.concat(address.toString()))
+  }
+
+  access(self) fun destroyCGPCommand(cgpCommand: @CGPCommand?) {
+    let commandId = cgpCommand?.commandId
+    destroy cgpCommand
+    if commandId != nil {
+      emit Executed(commandId: commandId!)
+    }
   }
 
   access(self) fun convertDataToHexEncodedMessage(commandIds: [String], commands: [String], params: [[AnyStruct]]): String {
@@ -297,16 +317,24 @@ access(all) contract AxelarGateway {
     return convertedInput
   }
 
-  access(self) fun getAppCapabilityPathFromAddress(_ address: Address): StoragePath {
-    return StoragePath(identifier: self.PREFIX_APP_CAPABILITY_NAME.concat(address.toString())) ?? panic("Could not get app capability path for address ".concat(address.toString()))
-  }
-
   access(self) fun claimAppCapability(provider: Address): &Capability<&{AxelarGateway.Executable}>? {
     if let appCapability = self.account.inbox.claim<&{AxelarGateway.Executable}>(self.PREFIX_APP_CAPABILITY_NAME.concat(provider.toString()), provider: provider) {
-      self.account.save(appCapability, to: self.getAppCapabilityPathFromAddress(provider))
-      return self.account.borrow<&Capability<&{AxelarGateway.Executable}>>(from: self.getAppCapabilityPathFromAddress(provider))
+      let capabilityPath = self.getAppCapabilityStoragePath(provider) ?? panic("Could not get app capability path for address ".concat(provider.toString()))
+      let oldCapability = self.account.load<Capability<&{AxelarGateway.Executable}>>(from: capabilityPath)
+      self.account.save(appCapability, to: capabilityPath)
+      return self.account.borrow<&Capability<&{AxelarGateway.Executable}>>(from: capabilityPath)
     }
     
     return nil
+  }
+
+  access(self) fun parseAddressForCurrentNetwork(_ address: String): Address {
+    let currentNetwork = AddressUtils.currentNetwork()
+    let parsedAddress = AddressUtils.parseAddress(address)
+    if AddressUtils.isValidAddress(parsedAddress, forNetwork: currentNetwork) {
+      return parsedAddress!
+    }
+
+    panic("Invalid Address")
   }
 }
