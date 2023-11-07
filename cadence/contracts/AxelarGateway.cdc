@@ -189,7 +189,7 @@ access(all) contract AxelarGateway {
 
             // we only need to track this was executed, since there's no other processing for this command
             self.executedCommandIds.append(commandId)
-            AxelarAuthWeighted.transferOperatorship(params: transferOperatorShipParams!)
+            AxelarAuthWeighted.transferOperatorship(message: encodedMessage, operators: operators, weights: weights, threshold: threshold, signatures: signatures, params: transferOperatorShipParams!)
             emit Executed(commandId: commandId)
           }
         }
