@@ -23,7 +23,7 @@ access(all) contract ExampleApplication {
     }
   }
 
-  access(all) resource ExecutableResource: AxelarGateway.Executable {
+  access(all) resource ExecutableResource: AxelarGateway.Executable, AxelarGateway.SenderIdentity {
     access(all) fun executeApp(commandResource: &AxelarGateway.CGPCommand, sourceChain: String, sourceAddress: String, payload: [UInt8]) {
       let gmpData = GMPData(sourceChain: sourceChain, sourceAddress: sourceAddress, payload: payload)
       let commandId = commandResource.commandId
