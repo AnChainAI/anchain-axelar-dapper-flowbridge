@@ -330,9 +330,13 @@ access(all) contract AxelarGateway {
 
   access(self) fun parseAddressForCurrentNetwork(_ address: String): Address {
     let currentNetwork = AddressUtils.currentNetwork()
-    let parsedAddress = AddressUtils.parseAddress(address)
-    if AddressUtils.isValidAddress(parsedAddress, forNetwork: currentNetwork) {
-      return parsedAddress!
+    if AddressUtils.isValidAddress(address, forNetwork: currentNetwork) {
+      let parsedAddress = AddressUtils.parseAddress(address)
+      if parsedAddress != nil {
+        return parsedAddress!
+      } else {
+        panic("Could not parse address")
+      }
     }
 
     panic("Invalid Address")
