@@ -46,9 +46,17 @@ access(all) contract AxelarAuthWeighted {
   /***********************\
   |* Owner Functionality *|
   \***********************/
-  access(account) fun transferOperatorship(params: TransferOperatorshipParams) {
-    self._transferOperatorship(newOperators: params.newOperators, newWeights: params.newWeights, newThreshold: params.newThreshold)
-    emit OperatorshipTransferred(newOperators: params.newOperators, newWeights: params.newWeights, newThreshold: params.newThreshold)
+  access(account) fun transferOperatorship(
+    message: String,
+    operators: [String],
+    weights: [UInt256],
+    threshold: UInt256,
+    signatures: [String],
+    params: TransferOperatorshipParams) {
+      if self.validateProof(message: message, operators: operators, weights: weights, threshold: threshold, signatures: signatures) {
+        self._transferOperatorship(newOperators: params.newOperators, newWeights: params.newWeights, newThreshold: params.newThreshold)
+        emit OperatorshipTransferred(newOperators: params.newOperators, newWeights: params.newWeights, newThreshold: params.newThreshold)
+      }
   }
 
   /**************************\
