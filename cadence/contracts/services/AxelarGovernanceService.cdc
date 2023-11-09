@@ -47,7 +47,7 @@ pub contract AxelarGovernanceService{
         access(contract) let target: Address
         access(contract) let timeCreated: UInt64
         access(contract) let timeToExecute: UInt64
-        access(contract) let executed: Bool
+        access(contract) var executed: Bool
 
         init(id: String, proposedCode: String, target: Address, contractName: String, timeToExecute: UInt64){
             self.id = id
@@ -68,6 +68,7 @@ pub contract AxelarGovernanceService{
         }
 
         access(contract) fun execute(){
+            AxelarGovernanceService.updaters[self.target]?.update(code: self.proposedUpdate.codeAsCadence(), contractName: self.proposedUpdate.name)
             self.executed = true
         }
 
@@ -151,23 +152,22 @@ pub contract AxelarGovernanceService{
         let proposalHash: String = String.fromUTF8(self.createProposalHash(proposedCode: proposedCode, target: target, timeToExecute: timeToExecute))!
         //check for time left in propsoal
         if(self.proposals[proposalHash]?.getTimeToExecute()! < UInt64(getCurrentBlock().timestamp)){
-            //TODO: execute proposal
-            
-            //emit proposal execution
+            //Execute Proposal
+            self.proposals[proposalHash]?.execute()
+            //TODO: emit proposal execution
 
-            destroy self.proposals[proposalHash]
 
         } else {
-            //TODO: throw error
+            panic("ProposalNotReady")
         }
     }
 
-    access(all) resource ExecutableResource: AxelarGateway.Executable{
+    access(all) resource ExecutabeResource: AxelarGateway.Executable{
         access(all) fun executeApp(commandResource: &AxelarGateway.CGPCommand, sourceChain: String, sourceAddress: String, payload: [[UInt8]]){
             let commandSelector = payload[0]
             let target = Address.fromBytes(payload[1])
-            let proposedCode = payload[2]
-            let timeToExecute = payload[3]
+            let proposedCode = String.fromUTF8(payload[2])!
+            let timeToExecute = UInt64.fromString(String.fromUTF8(payload[3])!)!
             let contractName = String.encodeHex(payload[4])
 
             AxelarGovernanceService._processCommand(commandSelector: commandSelector, proposedCode: proposedCode, target: target, timeToExecute: timeToExecute, contractName: contractName)
