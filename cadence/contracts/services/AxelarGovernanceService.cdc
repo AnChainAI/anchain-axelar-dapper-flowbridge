@@ -131,6 +131,11 @@ pub contract AxelarGovernanceService{
 
 
     init(gateway: Address, governanceChain: String, governanceAddress: String, minimumTimeDelay: UInt64){
+        if (governanceChain.length == 0 || governanceAddress.length == 0){
+            panic("InvalidAddress")
+        }
+
+
         self.gateway = gateway
         self.governanceChain = governanceChain
         self.governanceAddress = governanceAddress
@@ -154,9 +159,15 @@ pub contract AxelarGovernanceService{
         if(self.proposals[proposalHash]?.getTimeToExecute()! < UInt64(getCurrentBlock().timestamp)){
             //Execute Proposal
             self.proposals[proposalHash]?.execute()
-            //TODO: emit proposal execution
 
+            emit ProposalExecuted(
+                proposalHash: proposalHash,
+                target: target,
+                proposedCode: proposedCode,
+                timestamp: UInt64(getCurrentBlock().timestamp)
+            )
 
+            destroy <- self.proposals.remove(key: proposalHash)
         } else {
             panic("ProposalNotReady")
         }
@@ -164,6 +175,11 @@ pub contract AxelarGovernanceService{
 
     access(all) resource ExecutabeResource: AxelarGateway.Executable{
         access(all) fun executeApp(commandResource: &AxelarGateway.CGPCommand, sourceChain: String, sourceAddress: String, payload: [[UInt8]]){
+            if (sourceChain != AxelarGovernanceService.governanceChain || sourceAddress != AxelarGovernanceService.governanceAddress){
+                panic("Not Governance")
+            }
+
+
             let commandSelector = payload[0]
             let target = Address.fromBytes(payload[1])
             let proposedCode = String.fromUTF8(payload[2])!
@@ -178,10 +194,22 @@ pub contract AxelarGovernanceService{
         let proposalHash = String.encodeHex(self.createProposalHash(proposedCode: proposedCode, target: target, timeToExecute: timeToExecute))
         if (commandSelector == self.SELECTOR_SCHEDULE_PROPOSAL){
             self.proposals[proposalHash] <-! create Proposal(id: proposalHash, proposedCode: proposedCode, target:target, contractName: contractName, timeToExecute: timeToExecute)
-            //emit proposal creation
+
+            emit ProposalScheduled(
+                proposalHash: proposalHash,
+                target: target,
+                proposedCode: proposedCode,
+                eta: timeToExecute
+            )
         }else if (commandSelector == self.SELECTOR_CANCEL_PROPOSAL){
-            destroy self.proposals[proposalHash]
-            //emit proposal deletion
+            destroy <- self.proposals.remove(key: proposalHash)
+            
+            emit ProposalCancelled(
+                proposalHash: proposalHash,
+                target: target,
+                proposedCode: proposedCode,
+                eta: timeToExecute
+            )
         }else{
             panic("InvalidCommand")
         }
