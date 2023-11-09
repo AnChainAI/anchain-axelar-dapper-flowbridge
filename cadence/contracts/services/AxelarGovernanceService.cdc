@@ -1,8 +1,8 @@
-import IAxelarExecutable from "AxelarGateway.cdc"
-import AxelarGateway from "AxelarGateway.cdc"
+import IAxelarExecutable from "../AxelarGateway.cdc"
+import AxelarGateway from "../AxelarGateway.cdc"
 import Crypto
 
-pub contract AxelarGovernanceService: IAxelarExecutable{
+pub contract AxelarGovernanceService{
     //Selectors
     access(self) let SELECTOR_SCHEDULE_PROPOSAL: [UInt8]
     access(self) let SELECTOR_CANCEL_PROPOSAL: [UInt8]
@@ -56,11 +56,19 @@ pub contract AxelarGovernanceService: IAxelarExecutable{
             self.timeCreated = UInt64(getCurrentBlock().timestamp)
             self.executed = false
 
-            if timeToExecute < UInt64(getCurrentBlock().timestamp) + self.minimumTimeDelay {
-                self.timeToExecute = UInt64(getCurrentBlock().timestamp) + self.minimumTimeDelay
+            if timeToExecute < UInt64(getCurrentBlock().timestamp) + AxelarGovernanceService.minimumTimeDelay {
+                self.timeToExecute = UInt64(getCurrentBlock().timestamp) + AxelarGovernanceService.minimumTimeDelay
             } else {
                 self.timeToExecute = timeToExecute
             }
+        }
+
+        access(all) fun getTimeToExecute(): UInt64{
+            return self.timeToExecute
+        }
+
+        access(contract) fun execute(){
+            self.executed = true
         }
 
     }
@@ -86,10 +94,7 @@ pub contract AxelarGovernanceService: IAxelarExecutable{
 
         access(contract) fun update(code: String, contractName: String): Bool {
             //going to need to check if the deployment is in the deployments array
-            if let account = self.authCapability!.borrow() {
-                //TODO: Potentially implement try updates here to catch errors and add to failedDeployments
-
-                // Update the contract
+            if let account = self.authCapability.borrow() {
                 account.contracts.update__experimental(name: contractName, code: code.decodeHex())
             }
             return true
@@ -138,24 +143,26 @@ pub contract AxelarGovernanceService: IAxelarExecutable{
     
 
     access(all) fun getProposalEta(proposedCode: String, target: Address, timeToExecute: UInt64): UInt64{
-        let proposalHash = self.createProposalHash(proposedCode: proposedCode, target: target, timeToExecute: timeToExecute)
-        let proposal <- self.proposals[proposalHash]
-        return proposal.timeToExecute
+        let proposalHash: String = String.fromUTF8(self.createProposalHash(proposedCode: proposedCode, target: target, timeToExecute: timeToExecute))!
+        return self.proposals[proposalHash]?.getTimeToExecute()!
     }
 
     access(all) fun executeProposal(proposedCode: String, target: Address, timeToExecute: UInt64){
-        let proposalHash = self.createProposalHash(proposedCode: proposedCode, target: target, timeToExecute: timeToExecute)
-        let proposal = self.proposals[proposalHash]
+        let proposalHash: String = String.fromUTF8(self.createProposalHash(proposedCode: proposedCode, target: target, timeToExecute: timeToExecute))!
         //check for time left in propsoal
-        if(proposal.timeToExecute < UInt64(getCurrentBlock().timestamp)){
+        if(self.proposals[proposalHash]?.getTimeToExecute()! < UInt64(getCurrentBlock().timestamp)){
             //TODO: execute proposal
-            proposal.executed = true
+            
+            //emit proposal execution
+
+            destroy self.proposals[proposalHash]
+
         } else {
             //TODO: throw error
         }
     }
 
-    access(all) resource execute: AxelarGateway.Executable{
+    access(all) resource ExecutableResource: AxelarGateway.Executable{
         access(all) fun executeApp(commandResource: &AxelarGateway.CGPCommand, sourceChain: String, sourceAddress: String, payload: [[UInt8]]){
             let commandSelector = payload[0]
             let target = Address.fromBytes(payload[1])
@@ -163,11 +170,11 @@ pub contract AxelarGovernanceService: IAxelarExecutable{
             let timeToExecute = payload[3]
             let contractName = String.encodeHex(payload[4])
 
-            self._processCommand(commandSelector: commandSelector, proposedCode: proposedCode, target: target, timeToExecute: timeToExecute, contractName: contractName)
+            AxelarGovernanceService._processCommand(commandSelector: commandSelector, proposedCode: proposedCode, target: target, timeToExecute: timeToExecute, contractName: contractName)
         }
     }
 
-    access(self) fun _processCommand(commandSelector: [UInt8] ,proposedCode: String, target: Address, timeToExecute: UInt64, contractName: String){
+    access(contract) fun _processCommand(commandSelector: [UInt8] ,proposedCode: String, target: Address, timeToExecute: UInt64, contractName: String){
         let proposalHash = String.encodeHex(self.createProposalHash(proposedCode: proposedCode, target: target, timeToExecute: timeToExecute))
         if (commandSelector == self.SELECTOR_SCHEDULE_PROPOSAL){
             self.proposals[proposalHash] <-! create Proposal(id: proposalHash, proposedCode: proposedCode, target:target, contractName: contractName, timeToExecute: timeToExecute)
@@ -208,9 +215,4 @@ pub contract AxelarGovernanceService: IAxelarExecutable{
 
         return convertedInput
     }
-
-
-    
-
-
 }
