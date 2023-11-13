@@ -7,7 +7,7 @@ pub contract AxelarGovernanceService{
     access(self) let SELECTOR_SCHEDULE_PROPOSAL: [UInt8]
     access(self) let SELECTOR_CANCEL_PROPOSAL: [UInt8]
 
-
+    // Global Contract Variables
     access(all) let gateway: Address
     access(all) let governanceChain: String
     access(all) let governanceAddress: String
@@ -15,6 +15,7 @@ pub contract AxelarGovernanceService{
     access(self) let updaters: @{Address: Updater}
     access(self) let proposals: @{String: Proposal}
 
+    //Struct for Contract Updates
     pub struct ContractUpdate {
         pub let address: Address
         pub let name: String
@@ -40,7 +41,7 @@ pub contract AxelarGovernanceService{
     /*************\
     |* Resources *|
     \*************/
-
+    //Proposal Resource
     access(all) resource Proposal{
         access(contract) let id: String
         access(contract) let proposedUpdate: ContractUpdate
@@ -74,6 +75,7 @@ pub contract AxelarGovernanceService{
 
     }
 
+    //Updater Resource
     access(all) resource Updater{
         access(self) let address: Address
         access(self) let authCapability: Capability<&AuthAccount>
@@ -147,12 +149,13 @@ pub contract AxelarGovernanceService{
     }
 
     
-
+    //Get estimated execution time for proposal
     access(all) fun getProposalEta(proposedCode: String, target: Address, timeToExecute: UInt64): UInt64{
         let proposalHash: String = String.fromUTF8(self.createProposalHash(proposedCode: proposedCode, target: target, timeToExecute: timeToExecute))!
         return self.proposals[proposalHash]?.getTimeToExecute()!
     }
 
+    //Execute Scheduled Proposal
     access(all) fun executeProposal(proposedCode: String, target: Address, timeToExecute: UInt64){
         let proposalHash: String = String.fromUTF8(self.createProposalHash(proposedCode: proposedCode, target: target, timeToExecute: timeToExecute))!
         //check for time left in propsoal
@@ -190,6 +193,7 @@ pub contract AxelarGovernanceService{
         }
     }
 
+    //Process Command coming from Gateway
     access(contract) fun _processCommand(commandSelector: [UInt8] ,proposedCode: String, target: Address, timeToExecute: UInt64, contractName: String){
         let proposalHash = String.encodeHex(self.createProposalHash(proposedCode: proposedCode, target: target, timeToExecute: timeToExecute))
         if (commandSelector == self.SELECTOR_SCHEDULE_PROPOSAL){
