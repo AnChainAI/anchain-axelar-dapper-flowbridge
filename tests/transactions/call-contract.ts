@@ -11,6 +11,7 @@ transaction(destinationChain: String, destinationContractAddress: String, payloa
   let senderIdentityCap: Capability<&{AxelarGateway.SenderIdentity}>
   prepare(acct: AuthAccount) {
     if !acct.getCapability<&{AxelarGateway.SenderIdentity}>(/private/AxelarSenderIdentity).check() {
+      acct.unlink(/private/AxelarSenderIdentity)
       self.senderIdentityCap = acct.link<&{AxelarGateway.SenderIdentity}>(/private/AxelarSenderIdentity, target: /storage/AxelarExecutable) ?? panic("Could not create Axelar Sender Identity capability")
     } else {
       self.senderIdentityCap = acct.load<Capability<&{AxelarGateway.SenderIdentity}>>(from: /storage/AxelarExecutable) ?? panic("Could not load Axelar Sender Identity capability")
