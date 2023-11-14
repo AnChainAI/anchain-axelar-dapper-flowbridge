@@ -21,12 +21,17 @@ import { sortBy } from 'lodash'
  * To setup the testing, make sure you've run
  * the following command to start the flow emulator on a separate terminal:
  *
- *  flow emulator
+ * -> flow emulator
  *
- * To run this testing suite, open a different terminal
+ * To setup the flow emulator, open a different terminal
  * from the flow emulator terminal, and run the following command:
  *
- *  npm test -- gateway.spec.ts
+ * -> npm run emulator:setup
+ *
+ * Then, to run the this testing suite,
+ * run the following command:
+ *
+ * -> npm test -- gateway.spec.ts
  */
 describe('AxelarGateway', () => {
   const defaultAbiCoder = ethers.AbiCoder.defaultAbiCoder()
