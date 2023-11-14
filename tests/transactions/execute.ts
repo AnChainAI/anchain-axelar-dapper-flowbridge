@@ -17,6 +17,7 @@ transaction(
   threshold: UInt256,
   signatures: [String]
 ) {
+  prepare(acct: AuthAccount) {}
   execute {
     AxelarGateway.execute(commandIds: commandIds, commands: commands, params: params, operators: operators, weights: weights, threshold: threshold, signatures: signatures)
   }
@@ -51,7 +52,7 @@ export async function execute(params: TransactionFunctionParams<ExecuteArgs>) {
         arg(params.args.signatures, t.Array(t.String)),
       ]
     },
-    authorizations: [],
+    authorizations: [params.authz],
     payer: params.authz,
     proposer: params.authz,
     limit: 9999,
