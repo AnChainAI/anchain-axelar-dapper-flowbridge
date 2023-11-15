@@ -16,40 +16,38 @@ import { FlowConstants } from '../utils/flow'
 import { randomUUID } from 'crypto'
 import { ethers } from 'hardhat'
 import { sortBy } from 'lodash'
+import { AxelarGovernanceServiceContract } from './contracts/axelar-governance-service.contract'
+import { deployGovernanceContract } from './transactions/deploy-governance-contract'
 
 /**
  * To setup the testing, make sure you've run
  * the following command to start the flow emulator on a separate terminal:
  *
- * -> flow emulator
+ *  flow emulator
  *
- * To setup the flow emulator, open a different terminal
+ * To run this testing suite, open a different terminal
  * from the flow emulator terminal, and run the following command:
  *
- * -> npm run emulator:setup
- *
- * Then, to run the this testing suite,
- * run the following command:
- *
- * -> npm test -- gateway.spec.ts
+ *  npm test -- gateway.spec.ts
  */
 describe('AxelarGateway', () => {
   const defaultAbiCoder = ethers.AbiCoder.defaultAbiCoder()
   const utilsAddress = '0xf8d6e0586b0a20c7'
   const wallets = Array.from({ length: 10 }).map(() =>
-    ethers.Wallet.createRandom(),
+    ethers.Wallet.createRandom()
   )
   const keccak256 = ethers.keccak256
   const encoder = new TextEncoder()
   const user = wallets[0]
   const threshold = 7
   const operators = sortBy(wallets.slice(0, threshold), (wallet) =>
-    wallet.signingKey.publicKey.slice(4),
+    wallet.signingKey.publicKey.slice(4)
   )
   let constants: FlowConstants
   let dAppUser: FlowAccount
   let relayer: FlowAccount
   let admin: FlowAccount
+  let governanceUser: FlowAccount
 
   beforeAll(async () => {
     await Emulator.connect()
@@ -70,7 +68,7 @@ describe('AxelarGateway', () => {
           contractName: axelarAuthWeightedContract.name,
           contractCode: axelarAuthWeightedContract.code,
           recentOperators: operators.map((operator) =>
-            operator.signingKey.publicKey.slice(4),
+            operator.signingKey.publicKey.slice(4)
           ),
           recentWeights: operators.map(() => 1),
           recentThreshold: operators.length,
@@ -80,7 +78,7 @@ describe('AxelarGateway', () => {
       // Deploys dependent smart contracts to admin account
       const axelarGatewayContract = AxelarGatewayContract(
         admin.addr,
-        utilsAddress,
+        utilsAddress
       )
       await deployContracts({
         args: {
@@ -105,8 +103,9 @@ describe('AxelarGateway', () => {
 
       // Deploys example application smart contracts to dApp account
       const gatewayAddress = admin.addr
-      const exampleApplicationContract =
-        ExampleApplicationContract(gatewayAddress)
+      const exampleApplicationContract = ExampleApplicationContract(
+        gatewayAddress
+      )
       await deployContracts({
         args: {
           contracts: [exampleApplicationContract],
@@ -143,7 +142,7 @@ describe('AxelarGateway', () => {
               name: `AppCapabilityPath${dAppUser.addr}`,
             }),
           }),
-        ]),
+        ])
       )
     })
   })
@@ -155,7 +154,7 @@ describe('AxelarGateway', () => {
         destinationChain: 'Destination',
         destinationContractAddress: '0x123abc',
         payload: Array.from(
-          encoder.encode(defaultAbiCoder.encode(['address'], [user.address])),
+          encoder.encode(defaultAbiCoder.encode(['address'], [user.address]))
         ),
       }
 
@@ -176,11 +175,11 @@ describe('AxelarGateway', () => {
               destinationChain: data.destinationChain,
               destinationContractAddress: data.destinationContractAddress,
               payload: expect.arrayContaining(
-                data.payload.map((n) => n.toString()),
+                data.payload.map((n) => n.toString())
               ),
             }),
           }),
-        ]),
+        ])
       )
     })
   })
@@ -222,7 +221,7 @@ describe('AxelarGateway', () => {
             sourceTxHash,
             sourceEventIndex.toString(),
           ],
-        ],
+        ]
       )
 
       // Gather EVM signatures from the operators with the hex encoded message
@@ -245,7 +244,7 @@ describe('AxelarGateway', () => {
             ],
           ],
           operators: operators.map((operator) =>
-            operator.signingKey.publicKey.slice(4),
+            operator.signingKey.publicKey.slice(4)
           ),
           weights: operators.map(() => 1),
           threshold: operators.length,
@@ -269,7 +268,7 @@ describe('AxelarGateway', () => {
               sourceEventIndex: sourceEventIndex.toString(),
             }),
           }),
-        ]),
+        ])
       )
     })
 
@@ -303,7 +302,7 @@ describe('AxelarGateway', () => {
           }),
           expect.objectContaining({
             type: `A.${dAppUser.addr.slice(
-              2,
+              2
             )}.ExampleApplication.CommandApproved`,
             data: expect.objectContaining({
               commandId,
@@ -317,7 +316,7 @@ describe('AxelarGateway', () => {
               commandId,
             }),
           }),
-        ]),
+        ])
       )
 
       // Gather the approved data from the ExampleApplication
@@ -341,7 +340,7 @@ describe('AxelarGateway', () => {
     it('should allow operators to transfer operatorship', async () => {
       // Generate new operators, weights, and threshold data
       const newOperators = sortBy(wallets.slice(threshold), (wallet) =>
-        wallet.signingKey.publicKey.slice(4),
+        wallet.signingKey.publicKey.slice(4)
       ).map((operator) => operator.signingKey.publicKey.slice(4))
       const newWeights = newOperators.map(() => 1 + '')
       const newThreshold = newOperators.length.toString()
@@ -351,7 +350,7 @@ describe('AxelarGateway', () => {
       const approveData = dataToHexEncodedMessage(
         [commandId],
         ['transferOperatorship'],
-        [[newOperators, newWeights, newThreshold]],
+        [[newOperators, newWeights, newThreshold]]
       )
 
       // Gather EVM signatures from the current operators
@@ -365,7 +364,7 @@ describe('AxelarGateway', () => {
           commands: ['transferOperatorship'],
           params: [[newOperators, newWeights, newThreshold]],
           operators: operators.map((operator) =>
-            operator.signingKey.publicKey.slice(4),
+            operator.signingKey.publicKey.slice(4)
           ),
           weights: operators.map(() => 1),
           threshold: operators.length,
@@ -379,7 +378,7 @@ describe('AxelarGateway', () => {
         expect.arrayContaining([
           expect.objectContaining({
             type: `A.${admin.addr.slice(
-              2,
+              2
             )}.AxelarAuthWeighted.OperatorshipTransferred`,
             data: expect.objectContaining({
               newOperators,
@@ -393,8 +392,106 @@ describe('AxelarGateway', () => {
               commandId,
             }),
           }),
-        ]),
+        ])
       )
+    })
+  })
+
+  describe('Service Contracts', () => {
+    const defaultAbiCoder = ethers.AbiCoder.defaultAbiCoder()
+    const wallets = Array.from({ length: 10 }).map(() =>
+      ethers.Wallet.createRandom()
+    )
+    const keccak256 = ethers.keccak256
+    const encoder = new TextEncoder()
+    const user = wallets[0]
+    const threshold = 7
+    const operators = sortBy(wallets.slice(0, threshold), (wallet) =>
+      wallet.signingKey.publicKey.slice(4)
+    )
+    let constants: FlowConstants
+    let dAppUser: FlowAccount
+    let relayer: FlowAccount
+    let admin: FlowAccount
+    let service: FlowAccount
+
+    beforeAll(async () => {
+      await Emulator.connect()
+    })
+
+    describe('Deploy Core Contracts', () => {
+      it('deploy core contracts to admin account', async () => {
+        // Create an admin account
+        admin = await FlowAccount.from({})
+
+        // Update Flow Constants with admin address
+        constants = { ...EMULATOR_CONST, FLOW_ADMIN_ADDRESS: admin.addr }
+
+        // Deploys independent smart contracts to admin account
+        const axelarAuthWeightedContract = AxelarAuthWeightedContract()
+        await deployAuthContract({
+          args: {
+            contractName: axelarAuthWeightedContract.name,
+            contractCode: axelarAuthWeightedContract.code,
+            recentOperators: operators.map((operator) =>
+              operator.signingKey.publicKey.slice(4)
+            ),
+            recentWeights: operators.map(() => 1),
+            recentThreshold: operators.length,
+          },
+          authz: admin.authz,
+        })
+        // Deploys dependent smart contracts to admin account
+        const axelarGatewayContract = AxelarGatewayContract(
+          admin.addr,
+          utilsAddress
+        )
+        await deployContracts({
+          args: {
+            contracts: [axelarGatewayContract],
+          },
+          authz: admin.authz,
+        })
+
+        // Get the deployed contracts on the admin account
+        const deployedContracts = await getDeployedContracts({
+          args: { address: admin.addr },
+        })
+
+        expect(deployedContracts).toEqual([
+          'AxelarAuthWeighted',
+          'AxelarGateway',
+        ])
+      })
+    })
+    describe('Onboard Governance Contract With Gateway', () => {
+      it('deploy an example application contract to governance account', async () => {
+        // Create dApp account
+        governanceUser = await FlowAccount.from({})
+
+        // Deploys governance application smart contracts to governance account
+        const gatewayAddress = admin.addr
+        const governanceServiceContract = AxelarGovernanceServiceContract(
+          gatewayAddress
+        )
+        await deployGovernanceContract({
+          args: {
+            contractName: governanceServiceContract.name,
+            contractCode: governanceServiceContract.code,
+            gateway: gatewayAddress,
+            governanceChain: 'governanceChain',
+            governanceAddress: 'governanceAddress',
+            minimumTimeDealy: 1,
+          },
+          authz: governanceUser.authz,
+        })
+
+        // Get the deployed contracts on the dApp account
+        const deployedContracts = await getDeployedContracts({
+          args: { address: governanceUser.addr },
+        })
+        expect(deployedContracts).toEqual(['AxelarGovernanceService'])
+      })
     })
   })
 })

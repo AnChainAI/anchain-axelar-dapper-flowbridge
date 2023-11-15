@@ -1,4 +1,3 @@
-import IAxelarExecutable from "../AxelarGateway.cdc"
 import AxelarGateway from "../AxelarGateway.cdc"
 import Crypto
 
@@ -176,18 +175,25 @@ pub contract AxelarGovernanceService{
         }
     }
 
-    access(all) resource ExecutabeResource: AxelarGateway.Executable{
-        access(all) fun executeApp(commandResource: &AxelarGateway.CGPCommand, sourceChain: String, sourceAddress: String, payload: [[UInt8]]){
+    access(all) resource ExecutabeResource: AxelarGateway.Executable, AxelarGateway.SenderIdentity{
+        access(all) fun executeApp(commandResource: &AxelarGateway.CGPCommand, sourceChain: String, sourceAddress: String, payload: [UInt8]){
             if (sourceChain != AxelarGovernanceService.governanceChain || sourceAddress != AxelarGovernanceService.governanceAddress){
                 panic("Not Governance")
             }
 
 
-            let commandSelector = payload[0]
-            let target = Address.fromBytes(payload[1])
-            let proposedCode = String.fromUTF8(payload[2])!
-            let timeToExecute = UInt64.fromString(String.fromUTF8(payload[3])!)!
-            let contractName = String.encodeHex(payload[4])
+            // let commandSelector = payload[0]
+            // let target = Address.fromBytes(payload[1])
+            // let proposedCode = String.fromUTF8(payload[2])!
+            // let timeToExecute = UInt64.fromString(String.fromUTF8(payload[3])!)!
+            // let contractName = String.encodeHex(payload[4])
+
+            //defining as constants untill abiencode/decode is fixed
+            let commandSelector = AxelarGovernanceService.SELECTOR_SCHEDULE_PROPOSAL
+            let target = Address.fromString(sourceAddress)!
+            let proposedCode = "payload"
+            let timeToExecute = 1 as UInt64
+            let contractName = "AxelarGateway"
 
             AxelarGovernanceService._processCommand(commandSelector: commandSelector, proposedCode: proposedCode, target: target, timeToExecute: timeToExecute, contractName: contractName)
         }
