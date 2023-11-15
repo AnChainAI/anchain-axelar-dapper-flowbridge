@@ -11,7 +11,6 @@ transaction(
     refundAddress: Address
 ) {
     prepare(signer: AuthAccount) {
-        let gasService = AxelarGasService(address: 0xAXELARGASSERVICEADDRESS)
 
         if isExpress {
             gasService.addNativeExpressGas(
