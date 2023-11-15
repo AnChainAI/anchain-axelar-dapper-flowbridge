@@ -492,6 +492,31 @@ describe('AxelarGateway', () => {
         })
         expect(deployedContracts).toEqual(['AxelarGovernanceService'])
       })
+
+      it("publishes an AxelarGateway Executable capability to the gateway' inbox", async () => {
+        // Publishes the dApp executable capability to Gateway's inbox
+        let tx = await publishExecutableCapability({
+          constants,
+          args: {
+            recipient: admin.addr,
+          },
+          authz: governanceUser.authz,
+        })
+
+        // Expect that an InboxValuePublished event is emitted with the correct recipient and provider
+        expect(tx.events).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              type: 'flow.InboxValuePublished',
+              data: expect.objectContaining({
+                provider: governanceUser.addr,
+                recipient: admin.addr,
+                name: `AppCapabilityPath${governanceUser.addr}`,
+              }),
+            }),
+          ])
+        )
+      })
     })
   })
 })
