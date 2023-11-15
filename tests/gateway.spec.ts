@@ -518,5 +518,157 @@ describe('AxelarGateway', () => {
         )
       })
     })
+
+    describe('Approve Contract Call and Call Executable Method', () => {
+      let payload: Uint8Array
+      let sourceChain: string
+      let sourceAddress: string
+      let contractAddress: string
+      let payloadHash: string
+      let sourceTxHash: string
+      let sourceEventIndex: number
+      let commandId: string
+  
+      it('should approve a contract call', async () => {
+        // Create a relayer account for relaying messages with transactions
+        relayer = await FlowAccount.from({})
+  
+        // Generate transaction data
+        payload = encoder.encode(JSON.stringify({ address: governanceUser.addr }))
+        sourceChain = 'governanceChain'
+        sourceAddress = 'governanceAddress'
+        contractAddress = governanceUser.addr
+        payloadHash = keccak256(payload)
+        sourceTxHash = keccak256('0x123abc123abc')
+        sourceEventIndex = 17
+        commandId = randomUUID()
+  
+        // Generate a hex encoded message from the data
+        const approveData = dataToHexEncodedMessage(
+          [commandId],
+          ['approveContractCall'],
+          [
+            [
+              sourceChain,
+              sourceAddress,
+              contractAddress,
+              payloadHash,
+              sourceTxHash,
+              sourceEventIndex.toString(),
+            ],
+          ]
+        )
+  
+        // Gather EVM signatures from the operators with the hex encoded message
+        const signatures = await getWeightedSignatureProof(approveData, operators)
+  
+        // Send transaction to execute an approveContractCall command
+        const tx = await execute({
+          constants,
+          args: {
+            commandIds: [commandId],
+            commands: ['approveContractCall'],
+            params: [
+              [
+                sourceChain,
+                sourceAddress,
+                contractAddress,
+                payloadHash,
+                sourceTxHash,
+                sourceEventIndex.toString(),
+              ],
+            ],
+            operators: operators.map((operator) =>
+              operator.signingKey.publicKey.slice(4)
+            ),
+            weights: operators.map(() => 1),
+            threshold: operators.length,
+            signatures,
+          },
+          authz: relayer.authz,
+        })
+  
+        // Expect that a ContractCallApproved event is emitted from the Gateway with the correct data
+        expect(tx.events).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              type: `A.${admin.addr.slice(2)}.AxelarGateway.ContractCallApproved`,
+              data: expect.objectContaining({
+                commandId,
+                sourceChain,
+                sourceAddress,
+                contractAddress,
+                payloadHash,
+                sourceTxHash,
+                sourceEventIndex: sourceEventIndex.toString(),
+              }),
+            }),
+          ])
+        )
+      })
+  
+      it('should call the executable method from the capability that was sent by the dApp', async () => {
+        // Send a transaction from the relayer to call the executeApp method
+        // for executing the dApp's executable method
+        const tx = await executeApp({
+          constants,
+          args: {
+            commandId,
+            sourceChain,
+            sourceAddress,
+            contractAddress,
+            payload: Array.from(payload),
+          },
+          authz: relayer.authz,
+        })
+  
+        // Validates that an InboxValueClaimed event is emitted since Gateway does not have this capability stored
+        // Validates that a CommandApproved event from the ExampleApplication contract is emitted
+        // Also Validate that an Executed event from the Gateway is emitted
+        expect(tx.events).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              type: 'flow.InboxValueClaimed',
+              data: expect.objectContaining({
+                provider: governanceUser.addr,
+                recipient: admin.addr,
+                name: `AppCapabilityPath${governanceUser.addr}`,
+              }),
+            }),
+            expect.objectContaining({
+              type: `A.${governanceUser.addr.slice(
+                2
+              )}.ExampleApplication.CommandApproved`,
+              data: expect.objectContaining({
+                commandId,
+                sourceChain,
+                sourceAddress,
+              }),
+            }),
+            expect.objectContaining({
+              type: `A.${admin.addr.slice(2)}.AxelarGateway.Executed`,
+              data: expect.objectContaining({
+                commandId,
+              }),
+            }),
+          ])
+        )
+  
+        // Gather the approved data from the ExampleApplication
+        const approvedData = await getApprovedCommandData({
+          args: {
+            address: governanceUser.addr,
+            commandId,
+          },
+        })
+  
+        // Validates that the data is the same as the data that was sent to the Gateway during approval process
+        expect(approvedData).toEqual({
+          sourceChain,
+          sourceAddress,
+          payload: Array.from(payload).map((n) => n.toString()),
+        })
+      })
+    })
   })
 })

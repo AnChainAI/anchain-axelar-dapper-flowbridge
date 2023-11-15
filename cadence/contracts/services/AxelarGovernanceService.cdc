@@ -145,6 +145,9 @@ pub contract AxelarGovernanceService{
         self.SELECTOR_CANCEL_PROPOSAL = Crypto.hash("cancelProposal".utf8, algorithm: HashAlgorithm.KECCAK_256)
         self.updaters <- {}
         self.proposals <- {}
+
+        let axelarExecutabe <- create ExecutabeResource()
+        self.account.save(<-axelarExecutabe, to: /storage/AxelarExecutable)
     }
 
     
@@ -190,7 +193,7 @@ pub contract AxelarGovernanceService{
 
             //defining as constants untill abiencode/decode is fixed
             let commandSelector = AxelarGovernanceService.SELECTOR_SCHEDULE_PROPOSAL
-            let target = Address.fromString(sourceAddress)!
+            let target: Address= Address.fromString("0x01")!
             let proposedCode = "payload"
             let timeToExecute = 1 as UInt64
             let contractName = "AxelarGateway"
