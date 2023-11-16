@@ -13,7 +13,7 @@ transaction(
     prepare(signer: AuthAccount) {
 
         if isExpress {
-            gasService.addNativeExpressGas(
+            AxelarGasService.addNativeExpressGas(
                 sender: signer.address,
                 senderVault: <-senderVault,
                 destinationChain: destinationChain,
