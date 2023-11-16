@@ -23,7 +23,7 @@ transaction(
                 refundAddress: refundAddress
             )
         } else {
-            gasService.addNativeGas(
+            AxelarGasService.addNativeGas(
                 sender: signer.address,
                 senderVault: <-senderVault,
                 destinationChain: destinationChain,
