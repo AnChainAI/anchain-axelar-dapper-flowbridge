@@ -80,11 +80,11 @@ describe('AxelarGateway', () => {
         args: {
           contractName: axelarAuthWeightedContract.name,
           contractCode: axelarAuthWeightedContract.code,
-          recentOperators: operators.map((operator) =>
-            operator.signingKey.publicKey.slice(4)
-          ),
-          recentWeights: operators.map(() => 1),
-          recentThreshold: operators.length,
+          recentOperatorsSet: [
+            operators.map((operator) => operator.signingKey.publicKey.slice(4))
+          ],
+          recentWeightsSet: [operators.map(() => 1)],
+          recentThresholdSet: [operators.length],
         },
         authz: admin.authz,
       })
@@ -346,6 +346,24 @@ describe('AxelarGateway', () => {
         sourceAddress,
         payload: Array.from(payload).map((n) => n.toString()),
       })
+    })
+
+    it('should fail when trying to call app execute with same command id', async () => {
+      // Send a transaction from the relayer to call the executeApp method
+      // with the same command id and expect it to panic
+      await expect(
+        executeApp({
+          constants,
+          args: {
+            commandId,
+            sourceChain,
+            sourceAddress,
+            contractAddress,
+            payload: Array.from(payload),
+          },
+          authz: relayer.authz,
+        }),
+      ).rejects.not.toBeNull()
     })
   })
 

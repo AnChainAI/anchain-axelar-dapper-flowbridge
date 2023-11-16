@@ -66,7 +66,23 @@ access(all) contract AxelarGateway {
     }
   }
 
-  access(all) let executedCommandIds: [String]
+  access(all) struct ExecutionStatus {
+    access(all) let isExecuted: Bool
+    access(all) let statusCode: UInt64
+    access(all) let errorMessage: String
+
+    init(
+      isExecuted: Bool,
+      statusCode: UInt64,
+      errorMessage: String
+    ) {
+      self.isExecuted = isExecuted
+      self.statusCode = statusCode
+      self.errorMessage = errorMessage
+    }
+  }
+
+  access(self) let executedCommands: {String: ExecutionStatus}
   access(self) let approvedCommands: @{String: CGPCommand}
 
   init() {        
@@ -74,7 +90,7 @@ access(all) contract AxelarGateway {
     self.SELECTOR_APPROVE_CONTRACT_CALL = Crypto.hash("approveContractCall".utf8, algorithm: HashAlgorithm.KECCAK_256)
     self.PREFIX_APP_CAPABILITY_NAME = "AppCapabilityPath"
 
-    self.executedCommandIds = []
+    self.executedCommands = {}
     self.approvedCommands <- {}
   }
 
@@ -125,7 +141,7 @@ access(all) contract AxelarGateway {
   }
 
   access(all) resource interface Executable {
-    access(all) fun executeApp(commandResource: &AxelarGateway.CGPCommand, sourceChain: String, sourceAddress: String, payload: [UInt8])
+    access(all) fun executeApp(commandResource: &AxelarGateway.CGPCommand, sourceChain: String, sourceAddress: String, payload: [UInt8]): ExecutionStatus
   }
 
   access(all) resource interface SenderIdentity {}
@@ -144,8 +160,16 @@ access(all) contract AxelarGateway {
     )
   }
 
+  access(all) fun getCommandExecutionStatus(commandId: String): ExecutionStatus? {
+    return self.executedCommands[commandId]
+  }
+
+  access(all) fun isCommandApproved(commandId: String): Bool {
+    return self.approvedCommands[commandId] != nil ? true : false
+  }
+
   access(all) fun isCommandExecuted(commandId: String): Bool {
-    return self.executedCommandIds.contains(commandId)
+    return self.executedCommands[commandId]?.isExecuted ?? false
   }
 
   access(all) fun execute(
@@ -171,7 +195,9 @@ access(all) contract AxelarGateway {
 
     while i < commandsLength {
       var commandId = commandIds[i]
-      if (self.executedCommandIds.contains(commandId)) {
+
+      // Skip if commandId is already executed
+      if (self.isCommandExecuted(commandId: commandId)) {
         continue
       }
 
@@ -182,15 +208,33 @@ access(all) contract AxelarGateway {
       // it is used for managing gateway operators for the Axelar CGP protocol
       if (commandHash == self.SELECTOR_TRANSFER_OPERATORSHIP && params[i].length == 3) {
 
-        if (allowOperatorshipTransfer) {
+        if (allowOperatorshipTransfer.isValid) {
           var transferOperatorShipParams = paramHandler.generateTransferOperatorshipParams()
 
           if transferOperatorShipParams != nil {
 
+            self.executedCommands.insert(
+              key: commandId,
+              ExecutionStatus( 
+                isExecuted: true,
+                statusCode: 0,
+                errorMessage: ""
+              )
+            )
             // we only need to track this was executed, since there's no other processing for this command
-            self.executedCommandIds.append(commandId)
-            AxelarAuthWeighted.transferOperatorship(message: encodedMessage, operators: operators, weights: weights, threshold: threshold, signatures: signatures, params: transferOperatorShipParams!)
-            emit Executed(commandId: commandId)
+            let transferStatus = AxelarAuthWeighted.transferOperatorship(message: encodedMessage, operators: operators, weights: weights, threshold: threshold, signatures: signatures, params: transferOperatorShipParams!)
+            if transferStatus.isTransferred {
+              emit Executed(commandId: commandId)
+            } else {
+              self.executedCommands.insert(
+                key: commandId,
+                ExecutionStatus( 
+                  isExecuted: false,
+                  statusCode: transferStatus.statusCode,
+                  errorMessage: transferStatus.errorMessage
+                )
+              )
+            }
           }
         }
       } else if (commandHash == self.SELECTOR_APPROVE_CONTRACT_CALL && params[i].length == 6) {
@@ -222,8 +266,13 @@ access(all) contract AxelarGateway {
 
   access(all) fun executeApp(commandId: String, sourceChain: String, sourceAddress: String, contractAddress: String, payload: [UInt8]): Bool {
     // Check to see if command id has already been executed
-    if (self.executedCommandIds.contains(commandId)) {
-      return false
+    if (self.isCommandExecuted(commandId: commandId)) {
+      panic("Command id: ".concat(commandId).concat(" is already executed"))
+    }
+
+    // Check to see if command is approved
+    if !self.isCommandApproved(commandId: commandId) {
+      panic("Command with id: ".concat(commandId).concat(" is not approved"))
     }
 
     // Validate that contract address string is a valid address for current network
@@ -235,33 +284,29 @@ access(all) contract AxelarGateway {
     if appCapability?.check() != true {
       appCapability = self.claimAppCapability(provider: address)
     }
-
     if appCapability == nil || !appCapability!.check() {
       panic("Cannot retrieve app executable capability")
-    }
-
-    // Ensure that the command id is approved
-    if self.approvedCommands[commandId] == nil {
-      panic("Command with id: ".concat(commandId).concat(" does not exist"))
     }
 
     // Get a reference to the CGPCommand resource to pass into the executable method
     let cgpCommand = (&self.approvedCommands[commandId] as &CGPCommand?) ?? panic("Could not borrow reference to CGP Command")
 
-    // Ensure that this cgp command has not been executed before
-    var isExecuted = cgpCommand.isExecuted
-    if !isExecuted {
-      let ref = appCapability!.borrow()!.executeApp(commandResource: cgpCommand, sourceChain: sourceChain, sourceAddress: sourceAddress, payload: payload)
+    // Call the execute method from the dApp
+    let executionStatus = appCapability!.borrow()!.executeApp(commandResource: cgpCommand, sourceChain: sourceChain, sourceAddress: sourceAddress, payload: payload)
 
-      // Remove the cgp command resource and destroy the resource
+    // Record command execution
+    self.executedCommands.insert(
+      key: commandId,
+      executionStatus
+    )
+
+    // If the execute method is called successfully,
+    // remove the cgp command resource and destroy the resource
+    if executionStatus.isExecuted {
       self.destroyCGPCommand(cgpCommand: <- self.approvedCommands.remove(key: commandId))
-
-      // Record the executed command id
-      self.executedCommandIds.append(commandId)
-      isExecuted = true
     }
 
-    return isExecuted
+    return executionStatus.isExecuted
   }
 
   access(all) fun getAppCapabilityStoragePath(_ address: Address): StoragePath? {
