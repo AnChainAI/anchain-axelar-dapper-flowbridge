@@ -24,12 +24,25 @@ access(all) contract ExampleApplication {
   }
 
   access(all) resource ExecutableResource: AxelarGateway.Executable, AxelarGateway.SenderIdentity {
-    access(all) fun executeApp(commandResource: &AxelarGateway.CGPCommand, sourceChain: String, sourceAddress: String, payload: [UInt8]) {
+    access(all) fun executeApp(commandResource: &AxelarGateway.CGPCommand, sourceChain: String, sourceAddress: String, payload: [UInt8]): AxelarGateway.ExecutionStatus {
       let gmpData = GMPData(sourceChain: sourceChain, sourceAddress: sourceAddress, payload: payload)
       let commandId = commandResource.commandId
       ExampleApplication.approvedCommands.insert(key: commandId, gmpData)
 
-      emit CommandApproved(commandId: commandId, sourceChain: sourceChain, sourceAddress: sourceAddress)
+      if ExampleApplication.approvedCommands[commandId] != nil {
+        emit CommandApproved(commandId: commandId, sourceChain: sourceChain, sourceAddress: sourceAddress)
+        return AxelarGateway.ExecutionStatus(
+          isExecuted: true,
+          statusCode: 0,
+          errorMessage: ""
+        )
+      }
+
+      return AxelarGateway.ExecutionStatus(
+        isExecuted: false,
+        statusCode: 1,
+        errorMessage: "Could not insert gmp data"
+      )
     }
   }
 

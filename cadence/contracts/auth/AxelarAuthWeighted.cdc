@@ -14,6 +14,30 @@ access(all) contract AxelarAuthWeighted {
     newThreshold: UInt256
   )
 
+  access(all) struct ValidationStatus {
+    access(all) let isValid: Bool
+    access(all) let statusCode: UInt64 /* The pass/fail status. 0 indicates it passed, 1 indicates it failed */
+    access(all) let errorMessage: String /*	An error message if it exists. Default is an empty string '' */
+
+    init(isValid: Bool, statusCode: UInt64, errorMessage: String) {
+      self.isValid = isValid
+      self.statusCode = statusCode
+      self.errorMessage = errorMessage
+    }
+  }
+
+    access(all) struct TransferStatus {
+    access(all) let isTransferred: Bool
+    access(all) let statusCode: UInt64 /* The pass/fail status. 0 indicates it passed, 1 indicates it failed */
+    access(all) let errorMessage: String /*	An error message if it exists. Default is an empty string '' */
+
+    init(isTransferred: Bool, statusCode: UInt64, errorMessage: String) {
+      self.isTransferred = isTransferred
+      self.statusCode = statusCode
+      self.errorMessage = errorMessage
+    }
+  }
+
   access(all) struct TransferOperatorshipParams {
     access(all) let newOperators: [String]
     access(all) let newWeights: [UInt256]
@@ -29,18 +53,23 @@ access(all) contract AxelarAuthWeighted {
   /**************************\
   |* External Functionality *|
   \**************************/
-  access(all) fun validateProof(message: String, operators: [String], weights: [UInt256], threshold: UInt256, signatures: [String]): Bool {
+  access(all) fun validateProof(message: String, operators: [String], weights: [UInt256], threshold: UInt256, signatures: [String]): ValidationStatus {
     let operatorsHash = self._operatorsToHash(operators: operators, weights: weights, threshold: threshold)
     let operatorsEpoch = self.epochForHash[operatorsHash]
     let epoch = self.currentEpoch
 
+    // panic and revert transaction when signing operators are invalid
     if operatorsEpoch == nil || epoch - operatorsEpoch! >= self.OLD_KEY_RETENTION {
       panic("Invalid operators")
     }
 
-    self._validateSignatures(message: message, operators: operators, weights: weights, threshold: threshold, signatures: signatures)
+    let isValidSig = self._validateSignatures(message: message, operators: operators, weights: weights, threshold: threshold, signatures: signatures)
 
-    return operatorsEpoch! == epoch
+    return ValidationStatus(
+      isValid: operatorsEpoch! == epoch,
+      statusCode: 0,
+      errorMessage: ""
+    )
   }
 
   /***********************\
@@ -52,28 +81,46 @@ access(all) contract AxelarAuthWeighted {
     weights: [UInt256],
     threshold: UInt256,
     signatures: [String],
-    params: TransferOperatorshipParams) {
-      if self.validateProof(message: message, operators: operators, weights: weights, threshold: threshold, signatures: signatures) {
-        self._transferOperatorship(newOperators: params.newOperators, newWeights: params.newWeights, newThreshold: params.newThreshold)
-        emit OperatorshipTransferred(newOperators: params.newOperators, newWeights: params.newWeights, newThreshold: params.newThreshold)
+    params: TransferOperatorshipParams): TransferStatus {
+      let validatedProof = self.validateProof(message: message, operators: operators, weights: weights, threshold: threshold, signatures: signatures)
+      if !validatedProof.isValid {
+        return TransferStatus(
+          isTransferred: false,
+          statusCode: validatedProof.statusCode,
+          errorMessage: validatedProof.errorMessage
+        )
       }
+
+      return self._transferOperatorship(newOperators: params.newOperators, newWeights: params.newWeights, newThreshold: params.newThreshold)
   }
 
   /**************************\
   |* Internal Functionality *|
   \**************************/
-  access(self) fun _transferOperatorship(newOperators: [String], newWeights: [UInt256], newThreshold: UInt256) {
+  access(self) fun _transferOperatorship(newOperators: [String], newWeights: [UInt256], newThreshold: UInt256): TransferStatus {
     let operatorsLength = newOperators.length
     let weightsLength = newWeights.length
 
     if (operatorsLength == 0) {
-      panic("Invalid Operators")
+      return TransferStatus(
+        isTransferred: false,
+        statusCode: 1,
+        errorMessage: "Invalid Operators"
+      )
     }
     if (!self._isSortedAscAndContainsNoDuplicate(operators: newOperators)) {
-      panic("Operators are not sorted")
+      return TransferStatus(
+        isTransferred: false,
+        statusCode: 1,
+        errorMessage: "Operators are not sorted"
+      )
     }
     if (weightsLength != operatorsLength) {
-      panic("Invalid Weights")
+      return TransferStatus(
+        isTransferred: false,
+        statusCode: 1,
+        errorMessage: "Invalid Weights"
+      )
     }
 
     var totalWeight: UInt256 = 0
@@ -82,21 +129,36 @@ access(all) contract AxelarAuthWeighted {
     }
 
     if (newThreshold == 0 || totalWeight < newThreshold) {
-      panic("Invalid Threshold")
+      return TransferStatus(
+        isTransferred: false,
+        statusCode: 1,
+        errorMessage: "Invalid Threshold"
+      )
     }
     
     let newOperatorsHash = self._operatorsToHash(operators: newOperators, weights: newWeights, threshold: newThreshold)
     if (self.epochForHash[newOperatorsHash] != nil) {
-      panic("Duplicate Operators")
+      return TransferStatus(
+        isTransferred: false,
+        statusCode: 1,
+        errorMessage: "Duplicate Operators"
+      )
     }
 
     var epoch = self.currentEpoch + 1
     self.currentEpoch = epoch
     self.hashForEpoch[epoch] = newOperatorsHash
     self.epochForHash[newOperatorsHash] = epoch
+
+    emit OperatorshipTransferred(newOperators: newOperators, newWeights: newWeights, newThreshold: newThreshold)
+    return TransferStatus(
+      isTransferred: true,
+      statusCode: 0,
+      errorMessage: ""
+    )
   }
 
-  access(self) fun _validateSignatures(message: String, operators: [String], weights: [UInt256], threshold: UInt256, signatures: [String]) {
+  access(self) fun _validateSignatures(message: String, operators: [String], weights: [UInt256], threshold: UInt256, signatures: [String]): ValidationStatus {
     let operatorsLength = operators.length
     let signaturesLength = signatures.length
     var operatorIndex = 0
@@ -112,7 +174,11 @@ access(all) contract AxelarAuthWeighted {
 
       // check to see if all operators have been used
       if operatorIndex == operatorsLength {
-        panic("Malformed Signers")
+        return ValidationStatus(
+          isValid: false,
+          statusCode: 1,
+          errorMessage: "Malformed Signers"
+        )
       }
 
       // if a an operator is found for the signature
@@ -122,15 +188,23 @@ access(all) contract AxelarAuthWeighted {
       // complete the validation when the weight
       // reaches or surpasses the threshold
       if weight >= threshold {
-        return
+        return ValidationStatus(
+          isValid: true,
+          statusCode: 0,
+          errorMessage: ""
+        )
       }
 
       // move on to the next operator after weight accumulation
       operatorIndex = operatorIndex + 1
     }
 
-    // panic if weight is below threshold after validating all signatures
-    panic("Low Signatures Weight")
+    // fail if weight is below threshold after validating all signatures
+    return ValidationStatus(
+      isValid: false,
+      statusCode: 1,
+      errorMessage: "Low Signatures Weight"
+    )
   }
 
   access(self) fun _isSortedAscAndContainsNoDuplicate(operators: [String]): Bool {
@@ -183,15 +257,23 @@ access(all) contract AxelarAuthWeighted {
   }
 
   init(
-    recentOperators: [String],
-    recentWeights: [UInt256],
-    recentThreshold: UInt256
+    recentOperatorsSet:[[String]],
+    recentWeightsSet: [[UInt256]],
+    recentThresholdSet: [UInt256]
   ) {
     self.currentEpoch = 0
     self.hashForEpoch = {}
     self.epochForHash = {}
     self.OLD_KEY_RETENTION = 16
 
-    self._transferOperatorship(newOperators: recentOperators, newWeights: recentWeights, newThreshold: recentThreshold)
+    var i = 0
+    while i < recentOperatorsSet.length {
+      self._transferOperatorship(
+        newOperators: recentOperatorsSet[i],
+        newWeights: recentWeightsSet[i],
+        newThreshold: recentThresholdSet[i]
+      )
+      i = i + 1
+    }
   }
 }
