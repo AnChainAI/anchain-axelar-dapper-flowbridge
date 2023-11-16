@@ -1,5 +1,6 @@
 import AxelarGasService from "../services/AxelarGasService"
 import FungibleToken from "fungible-token"
+import FlowToken from "FlowToken"
 
 transaction(
     isExpress: Bool,
