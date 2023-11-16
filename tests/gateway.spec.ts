@@ -74,8 +74,6 @@ describe('AxelarGateway', () => {
       // Update Flow Constants with admin address
       constants = { ...EMULATOR_CONST, FLOW_ADMIN_ADDRESS: admin.addr }
 
-      console.log(constants)
-
       // Deploys independent smart contracts to admin account
       const axelarAuthWeightedContract = AxelarAuthWeightedContract()
       await deployAuthContract({
@@ -442,8 +440,6 @@ describe('AxelarGateway', () => {
         // Update Flow Constants with admin address
         constants = { ...EMULATOR_CONST, FLOW_ADMIN_ADDRESS: admin.addr }
 
-        console.log(constants)
-
         // Deploys independent smart contracts to admin account
         const axelarAuthWeightedContract = AxelarAuthWeightedContract()
         await deployAuthContract({
@@ -588,19 +584,16 @@ describe('AxelarGateway', () => {
           utilsAddress
         )
 
-        console.log(updatedCode.code)
-
         await fs.writeFileSync(
           'tests/utils/updated-contracts/AxelarGateway-updated.cdc',
-          updatedCode.code,
+          updatedCode.code
         )
 
         const execPromise = util.promisify(exec)
-        const { stdout, stderr } = await execPromise(`python3 tests/utils/get_code_hex.py tests/utils/updated-contracts/AxelarGateway-updated.cdc`)
+        const { stdout, stderr } = await execPromise(
+          `python3 tests/utils/get_code_hex.py tests/utils/updated-contracts/AxelarGateway-updated.cdc`
+        )
         rawPayload = stdout.slice(0, -1)
-        console.log(await getDeployedContracts({
-          args: { address: admin.addr },
-        }), admin.addr)
         payload = encoder.encode(rawPayload)
         sourceChain = 'governanceChain'
         sourceAddress = 'governanceAddress'
@@ -734,29 +727,25 @@ describe('AxelarGateway', () => {
         })
 
         expect(eta).not.toEqual(0)
-        console.log(eta, new Date().getTime() / 1000)
       })
 
       it('execute scheduled proposal', async () => {
-        console.log(
-          await executeGovernanceProposal({
-            constants,
-            args: {
-              address: governanceUser.addr,
-              target: admin.addr,
-              proposedCode: rawPayload,
-            },
-            authz: relayer.authz,
-          })
-        )
-        console.log(
-          await getContractCode({
-            args: {
-              address: admin.addr,
-              name: 'AxelarGateway',
-            },
-          })
-        )
+        await executeGovernanceProposal({
+          constants,
+          args: {
+            address: governanceUser.addr,
+            target: admin.addr,
+            proposedCode: rawPayload,
+          },
+          authz: relayer.authz,
+        })
+
+        await getContractCode({
+          args: {
+            address: admin.addr,
+            name: 'AxelarGateway',
+          },
+        })
       })
     })
   })
