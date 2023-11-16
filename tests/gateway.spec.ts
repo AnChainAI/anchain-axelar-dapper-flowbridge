@@ -464,11 +464,11 @@ describe('AxelarGateway', () => {
           args: {
             contractName: axelarAuthWeightedContract.name,
             contractCode: axelarAuthWeightedContract.code,
-            recentOperators: operators.map((operator) =>
-              operator.signingKey.publicKey.slice(4)
-            ),
-            recentWeights: operators.map(() => 1),
-            recentThreshold: operators.length,
+            recentOperatorsSet: [
+              operators.map((operator) => operator.signingKey.publicKey.slice(4))
+            ],
+            recentWeightsSet: [operators.map(() => 1)],
+          recentThresholdSet: [operators.length],
           },
           authz: admin.authz,
         })

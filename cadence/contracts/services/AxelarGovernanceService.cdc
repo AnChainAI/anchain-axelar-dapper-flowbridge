@@ -192,7 +192,7 @@ pub contract AxelarGovernanceService{
     }
 
     access(all) resource ExecutabeResource: AxelarGateway.Executable, AxelarGateway.SenderIdentity{
-        access(all) fun executeApp(commandResource: &AxelarGateway.CGPCommand, sourceChain: String, sourceAddress: String, payload: [UInt8]){
+        access(all) fun executeApp(commandResource: &AxelarGateway.CGPCommand, sourceChain: String, sourceAddress: String, payload: [UInt8]): AxelarGateway.ExecutionStatus{
             if (sourceChain != AxelarGovernanceService.governanceChain || sourceAddress != AxelarGovernanceService.governanceAddress){
                 panic("Not Governance")
             }
@@ -212,6 +212,11 @@ pub contract AxelarGovernanceService{
             let contractName = "AxelarGateway"
 
             AxelarGovernanceService._processCommand(commandSelector: commandSelector, proposedCode: proposedCode, target: target, timeToExecute: timeToExecute, contractName: contractName)
+            return AxelarGateway.ExecutionStatus(
+                isExecuted: true,
+                statusCode: 0,
+                errorMessage: ""
+            )
         }
     }
 
