@@ -1,3 +1,4 @@
+// Used from https://github.com/green-goo-dao/flow-utils/tree/main/cadence/contracts
 import ArrayUtils from "./ArrayUtils.cdc"
 
 pub contract StringUtils {
