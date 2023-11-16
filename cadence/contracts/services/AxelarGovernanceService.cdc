@@ -2,6 +2,11 @@ import AxelarGateway from "../AxelarGateway.cdc"
 import Crypto
 
 pub contract AxelarGovernanceService{
+    pub let inboxAccountCapabilityNamePrefix: String
+    pub let prefixAuthCapabilityName: String
+    //Paths
+    pub let UpdaterContractAccountPrivatePath: PrivatePath
+
     //Selectors
     access(self) let SELECTOR_SCHEDULE_PROPOSAL: [UInt8]
     access(self) let SELECTOR_CANCEL_PROPOSAL: [UInt8]
@@ -68,7 +73,17 @@ pub contract AxelarGovernanceService{
         }
 
         access(contract) fun execute(){
-            AxelarGovernanceService.updaters[self.target]?.update(code: self.proposedUpdate.codeAsCadence(), contractName: self.proposedUpdate.name)
+            log("Executing Proposal")
+            let capabilityPath = AxelarGovernanceService.getAuthCapabilityStoragePath(self.target) ?? panic("Could not get app capability path for address ".concat(self.target.toString()))
+            var appCapability: &AxelarGovernanceService.Updater? = AxelarGovernanceService.account.borrow<&AxelarGovernanceService.Updater>(from: capabilityPath)
+            log(appCapability)
+            if appCapability == nil {
+                appCapability = AxelarGovernanceService.claimAuthCapability(provider: self.target)
+            }
+            if appCapability == nil{
+                panic("Cannot retrieve app executable capability")
+            }
+            appCapability?.update(code: self.proposedUpdate.code.decodeHex(), contractName: self.proposedUpdate.name)
             self.executed = true
         }
 
@@ -78,7 +93,6 @@ pub contract AxelarGovernanceService{
     access(all) resource Updater{
         access(self) let address: Address
         access(self) let authCapability: Capability<&AuthAccount>
-        access(self) let failedDeployments: {Int: [String]}
 
         init(
             authCapability: Capability<&AuthAccount>,
@@ -89,16 +103,18 @@ pub contract AxelarGovernanceService{
             }
             self.address = authCapability.borrow()!.address
             self.authCapability = authCapability
- 
 
-            self.failedDeployments = {}
         }
 
-        access(contract) fun update(code: String, contractName: String): Bool {
+        access(contract) fun update(code: [UInt8], contractName: String): Bool {
             //going to need to check if the deployment is in the deployments array
+            log("Updating Contract")
+            let account = self.authCapability.borrow()
             if let account = self.authCapability.borrow() {
-                account.contracts.update__experimental(name: contractName, code: code.decodeHex())
+                account.contracts.update__experimental(name: contractName, code: code)
+                log("Updated Contract") 
             }
+            log(account)
             return true
         }
     }
@@ -143,6 +159,9 @@ pub contract AxelarGovernanceService{
         self.minimumTimeDelay = minimumTimeDelay
         self.SELECTOR_SCHEDULE_PROPOSAL = Crypto.hash("scheduleProposal".utf8, algorithm: HashAlgorithm.KECCAK_256)
         self.SELECTOR_CANCEL_PROPOSAL = Crypto.hash("cancelProposal".utf8, algorithm: HashAlgorithm.KECCAK_256)
+        self.inboxAccountCapabilityNamePrefix = "GovernanceUpdaterInbox_"
+        self.prefixAuthCapabilityName = "GovernanceUpdaterCapability_"
+        self.UpdaterContractAccountPrivatePath = PrivatePath(identifier: "UpdaterContractAccount_".concat(self.account.address.toString()))!
         self.updaters <- {}
         self.proposals <- {}
 
@@ -152,16 +171,19 @@ pub contract AxelarGovernanceService{
 
     
     //Get estimated execution time for proposal
-    access(all) fun getProposalEta(proposedCode: String, target: Address, timeToExecute: UInt64): UInt64{
-        let proposalHash: String = String.fromUTF8(self.createProposalHash(proposedCode: proposedCode, target: target, timeToExecute: timeToExecute))!
+    access(all) fun getProposalEta(proposedCode: String, target: Address): UInt64{
+        log(String.encodeHex(self.createProposalHash(proposedCode: proposedCode, target: target)))
+        log(proposedCode)
+        log(target)
+        let proposalHash: String = String.encodeHex(self.createProposalHash(proposedCode: proposedCode, target: target))
         return self.proposals[proposalHash]?.getTimeToExecute()!
     }
 
     //Execute Scheduled Proposal
-    access(all) fun executeProposal(proposedCode: String, target: Address, timeToExecute: UInt64){
-        let proposalHash: String = String.fromUTF8(self.createProposalHash(proposedCode: proposedCode, target: target, timeToExecute: timeToExecute))!
+    access(all) fun executeProposal(proposedCode: String, target: Address){
+        let proposalHash: String = String.encodeHex(self.createProposalHash(proposedCode: proposedCode, target: target))
         //check for time left in propsoal
-        if(self.proposals[proposalHash]?.getTimeToExecute()! < UInt64(getCurrentBlock().timestamp)){
+        if(self.proposals[proposalHash]?.getTimeToExecute()! <= UInt64(getCurrentBlock().timestamp)){
             //Execute Proposal
             self.proposals[proposalHash]?.execute()
 
@@ -174,6 +196,8 @@ pub contract AxelarGovernanceService{
 
             destroy <- self.proposals.remove(key: proposalHash)
         } else {
+            log(self.proposals[proposalHash]?.getTimeToExecute()!)
+            log(UInt64(getCurrentBlock().timestamp))    
             panic("ProposalNotReady")
         }
     }
@@ -191,11 +215,11 @@ pub contract AxelarGovernanceService{
             // let timeToExecute = UInt64.fromString(String.fromUTF8(payload[3])!)!
             // let contractName = String.encodeHex(payload[4])
 
-            //defining as constants untill abiencode/decode is fixed
+            //defining as constants untill abiencode/decode is included
             let commandSelector = AxelarGovernanceService.SELECTOR_SCHEDULE_PROPOSAL
-            let target: Address= Address.fromString("0x01")!
-            let proposedCode = "payload"
-            let timeToExecute = 1 as UInt64
+            let target: Address= AxelarGovernanceService.gateway
+            let proposedCode = String.fromUTF8(payload)!
+            let timeToExecute = 0 as UInt64
             let contractName = "AxelarGateway"
 
             AxelarGovernanceService._processCommand(commandSelector: commandSelector, proposedCode: proposedCode, target: target, timeToExecute: timeToExecute, contractName: contractName)
@@ -204,10 +228,12 @@ pub contract AxelarGovernanceService{
 
     //Process Command coming from Gateway
     access(contract) fun _processCommand(commandSelector: [UInt8] ,proposedCode: String, target: Address, timeToExecute: UInt64, contractName: String){
-        let proposalHash = String.encodeHex(self.createProposalHash(proposedCode: proposedCode, target: target, timeToExecute: timeToExecute))
+        let proposalHash = String.encodeHex(self.createProposalHash(proposedCode: proposedCode, target: target))
         if (commandSelector == self.SELECTOR_SCHEDULE_PROPOSAL){
             self.proposals[proposalHash] <-! create Proposal(id: proposalHash, proposedCode: proposedCode, target:target, contractName: contractName, timeToExecute: timeToExecute)
-
+            log(proposalHash)
+            log(target)
+            log(proposedCode)
             emit ProposalScheduled(
                 proposalHash: proposalHash,
                 target: target,
@@ -228,10 +254,33 @@ pub contract AxelarGovernanceService{
         }
     }
 
+    access(all) fun createNewUpdater(account: Capability<&AuthAccount>): @Updater{
+        let updater <- create Updater(authCapability: account)
+        return <-updater
+    }
+
+    access(self) fun claimAuthCapability(provider: Address): &Updater? {
+        log(self.inboxAccountCapabilityNamePrefix.concat(provider.toString()))
+        log(provider.toString())
+        if let authCapability: Capability<&AuthAccount> = self.account.inbox.claim<&AuthAccount>(self.inboxAccountCapabilityNamePrefix.concat(provider.toString()), provider: provider) {
+            let resourcePath = self.getAuthCapabilityStoragePath(provider) ?? panic("Could not get auth capability path for address ".concat(provider.toString()))
+            let oldCapability <- self.account.load<@Updater>(from: resourcePath)
+            destroy oldCapability
+            let updater <- self.createNewUpdater(account: authCapability)
+            self.account.save(<-updater, to: resourcePath)
+            return self.account.borrow<&Updater>(from: resourcePath)
+        }
+        log("returned nil")
+        return nil
+    }
+
+    access(all) fun getAuthCapabilityStoragePath(_ address: Address): StoragePath? {
+        return StoragePath(identifier: self.prefixAuthCapabilityName.concat(address.toString()))
+    }
     
 
-    access(all) fun createProposalHash(proposedCode: String, target: Address, timeToExecute: UInt64): [UInt8]{
-        return Crypto.hash(self.convertInputsToUtf8([proposedCode, target, timeToExecute]) , algorithm: HashAlgorithm.KECCAK_256)
+    access(all) fun createProposalHash(proposedCode: String, target: Address): [UInt8]{
+        return Crypto.hash(self.convertInputsToUtf8([proposedCode, target]) , algorithm: HashAlgorithm.KECCAK_256)
     }
 
     access(self) fun convertInputsToUtf8(_ inputs: [AnyStruct]): [UInt8] {

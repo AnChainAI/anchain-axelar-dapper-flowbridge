@@ -16,8 +16,16 @@ import { FlowConstants } from '../utils/flow'
 import { randomUUID } from 'crypto'
 import { ethers } from 'hardhat'
 import { sortBy } from 'lodash'
+import util from 'util'
 import { AxelarGovernanceServiceContract } from './contracts/axelar-governance-service.contract'
 import { deployGovernanceContract } from './transactions/deploy-governance-contract'
+import { getProposalEta } from './scripts/get-proposal-eta'
+import { executeGovernanceProposal } from './transactions/execute-governance-proposal'
+import { getContractCode } from './scripts/get-contract-code'
+import { publishAuthCapabilityToGovernance } from './transactions/publish-auth-capability'
+import { AxelarGatewayUpdateContract } from './contracts/axelar-gateway-updated.contract'
+import { exec } from 'child_process'
+import fs from 'fs'
 /**
  * To setup the testing, make sure you've run
  * the following command to start the flow emulator on a separate terminal:
@@ -29,6 +37,12 @@ import { deployGovernanceContract } from './transactions/deploy-governance-contr
  *
  *  npm test -- gateway.spec.ts
  */
+
+export const delay = (milliseconds: number, fn: Function) => {
+  setTimeout(() => {
+    fn()
+  }, milliseconds)
+}
 describe('AxelarGateway', () => {
   const defaultAbiCoder = ethers.AbiCoder.defaultAbiCoder()
   const utilsAddress = '0xf8d6e0586b0a20c7'
@@ -59,6 +73,8 @@ describe('AxelarGateway', () => {
 
       // Update Flow Constants with admin address
       constants = { ...EMULATOR_CONST, FLOW_ADMIN_ADDRESS: admin.addr }
+
+      console.log(constants)
 
       // Deploys independent smart contracts to admin account
       const axelarAuthWeightedContract = AxelarAuthWeightedContract()
@@ -426,6 +442,8 @@ describe('AxelarGateway', () => {
         // Update Flow Constants with admin address
         constants = { ...EMULATOR_CONST, FLOW_ADMIN_ADDRESS: admin.addr }
 
+        console.log(constants)
+
         // Deploys independent smart contracts to admin account
         const axelarAuthWeightedContract = AxelarAuthWeightedContract()
         await deployAuthContract({
@@ -480,7 +498,7 @@ describe('AxelarGateway', () => {
             gateway: gatewayAddress,
             governanceChain: 'governanceChain',
             governanceAddress: 'governanceAddress',
-            minimumTimeDealy: 1,
+            minimumTimeDelay: 0,
           },
           authz: governanceUser.authz,
         })
@@ -518,8 +536,41 @@ describe('AxelarGateway', () => {
       })
     })
 
+    describe('Setup Auth Capability for Admin Account', () => {
+      it('should setup an auth capability for the admin account and send to governance inbox', async () => {
+        let tx = await publishAuthCapabilityToGovernance({
+          constants,
+          args: {
+            address: governanceUser.addr,
+            recipient: governanceUser.addr,
+          },
+          authz: admin.authz,
+        })
+
+        expect(tx.events).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              type: 'flow.InboxValuePublished',
+              data: expect.objectContaining({
+                provider: admin.addr,
+                recipient: governanceUser.addr,
+                name: `GovernanceUpdaterInbox_${admin.addr}`,
+              }),
+            }),
+            expect.objectContaining({
+              type: 'flow.AccountLinked',
+              data: expect.objectContaining({
+                address: admin.addr,
+              }),
+            }),
+          ])
+        )
+      })
+    })
+
     describe('Approve Contract Call and Call Executable Method', () => {
       let payload: Uint8Array
+      let rawPayload: string
       let sourceChain: string
       let sourceAddress: string
       let contractAddress: string
@@ -527,13 +578,30 @@ describe('AxelarGateway', () => {
       let sourceTxHash: string
       let sourceEventIndex: number
       let commandId: string
-  
+
       it('should approve a contract call', async () => {
         // Create a relayer account for relaying messages with transactions
         relayer = await FlowAccount.from({})
-  
-        // Generate transaction data
-        payload = encoder.encode(JSON.stringify({ address: governanceUser.addr }))
+
+        const updatedCode = AxelarGatewayUpdateContract(
+          admin.addr,
+          utilsAddress
+        )
+
+        console.log(updatedCode.code)
+
+        await fs.writeFileSync(
+          'tests/utils/updated-contracts/AxelarGateway-updated.cdc',
+          updatedCode.code,
+        )
+
+        const execPromise = util.promisify(exec)
+        const { stdout, stderr } = await execPromise(`python3 tests/utils/get_code_hex.py tests/utils/updated-contracts/AxelarGateway-updated.cdc`)
+        rawPayload = stdout.slice(0, -1)
+        console.log(await getDeployedContracts({
+          args: { address: admin.addr },
+        }), admin.addr)
+        payload = encoder.encode(rawPayload)
         sourceChain = 'governanceChain'
         sourceAddress = 'governanceAddress'
         contractAddress = governanceUser.addr
@@ -541,7 +609,7 @@ describe('AxelarGateway', () => {
         sourceTxHash = keccak256('0x123abc123abc')
         sourceEventIndex = 17
         commandId = randomUUID()
-  
+
         // Generate a hex encoded message from the data
         const approveData = dataToHexEncodedMessage(
           [commandId],
@@ -557,10 +625,13 @@ describe('AxelarGateway', () => {
             ],
           ]
         )
-  
+
         // Gather EVM signatures from the operators with the hex encoded message
-        const signatures = await getWeightedSignatureProof(approveData, operators)
-  
+        const signatures = await getWeightedSignatureProof(
+          approveData,
+          operators
+        )
+
         // Send transaction to execute an approveContractCall command
         const tx = await execute({
           constants,
@@ -586,12 +657,14 @@ describe('AxelarGateway', () => {
           },
           authz: relayer.authz,
         })
-  
+
         // Expect that a ContractCallApproved event is emitted from the Gateway with the correct data
         expect(tx.events).toEqual(
           expect.arrayContaining([
             expect.objectContaining({
-              type: `A.${admin.addr.slice(2)}.AxelarGateway.ContractCallApproved`,
+              type: `A.${admin.addr.slice(
+                2
+              )}.AxelarGateway.ContractCallApproved`,
               data: expect.objectContaining({
                 commandId,
                 sourceChain,
@@ -605,7 +678,7 @@ describe('AxelarGateway', () => {
           ])
         )
       })
-  
+
       it('should call the executable method from the capability that was sent by the dApp', async () => {
         // Send a transaction from the relayer to call the executeApp method
         // for executing the dApp's executable method
@@ -620,7 +693,7 @@ describe('AxelarGateway', () => {
           },
           authz: relayer.authz,
         })
-  
+
         // Validates that an InboxValueClaimed event is emitted since Gateway does not have this capability stored
         // Validates that a CommandApproved event from the ExampleApplication contract is emitted
         // Also Validate that an Executed event from the Gateway is emitted
@@ -652,21 +725,38 @@ describe('AxelarGateway', () => {
             }),
           ])
         )
-  
-        // Gather the approved data from the ExampleApplication
-        // const approvedData = await getApprovedCommandData_Governance({
-        //   args: {
-        //     address: governanceUser.addr,
-        //     commandId,
-        //   },
-        // })
-  
-        // // Validates that the data is the same as the data that was sent to the Gateway during approval process
-        // expect(approvedData).toEqual({
-        //   sourceChain,
-        //   sourceAddress,
-        //   payload: Array.from(payload).map((n) => n.toString()),
-        // })
+        const eta = await getProposalEta({
+          args: {
+            address: governanceUser.addr,
+            target: admin.addr,
+            proposedCode: rawPayload,
+          },
+        })
+
+        expect(eta).not.toEqual(0)
+        console.log(eta, new Date().getTime() / 1000)
+      })
+
+      it('execute scheduled proposal', async () => {
+        console.log(
+          await executeGovernanceProposal({
+            constants,
+            args: {
+              address: governanceUser.addr,
+              target: admin.addr,
+              proposedCode: rawPayload,
+            },
+            authz: relayer.authz,
+          })
+        )
+        console.log(
+          await getContractCode({
+            args: {
+              address: admin.addr,
+              name: 'AxelarGateway',
+            },
+          })
+        )
       })
     })
   })

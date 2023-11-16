@@ -30,7 +30,7 @@ export interface DeployGovernanceContractArgs {
   readonly gateway: string,
   readonly governanceChain: string,
   readonly governanceAddress: string,
-  readonly minimumTimeDealy: number,
+  readonly minimumTimeDelay: number,
 }
 
 export async function deployGovernanceContract(
@@ -44,7 +44,7 @@ export async function deployGovernanceContract(
       arg(params.args.gateway, t.Address),
       arg(params.args.governanceChain, t.String),
       arg(params.args.governanceAddress, t.String),
-      arg(params.args.minimumTimeDealy.toString(), t.UInt64),
+      arg(params.args.minimumTimeDelay.toString(), t.UInt64),
     ],
     authorizations: [params.authz],
     payer: params.authz,
