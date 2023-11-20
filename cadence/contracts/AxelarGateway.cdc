@@ -2,7 +2,7 @@ import AxelarAuthWeighted from "./auth/AxelarAuthWeighted.cdc"
 import AddressUtils from "./standard/AddressUtils.cdc"
 import Crypto
 
-// Main GateWay contract for audit
+// Main GateWay contract for sending and receiving interchain messages
 access(all) contract AxelarGateway {
   access(self) let SELECTOR_APPROVE_CONTRACT_CALL: [UInt8]
   access(self) let SELECTOR_TRANSFER_OPERATORSHIP: [UInt8]
