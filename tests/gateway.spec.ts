@@ -26,6 +26,7 @@ import { publishAuthCapabilityToGovernance } from './transactions/publish-auth-c
 import { AxelarGatewayUpdateContract } from './contracts/axelar-gateway-updated.contract'
 import { exec } from 'child_process'
 import fs from 'fs'
+import { AxelarGasServiceContract } from './contracts/axelar-gas-service.contract'
 /**
  * To setup the testing, make sure you've run
  * the following command to start the flow emulator on a separate terminal:
@@ -505,6 +506,15 @@ describe('AxelarGateway', () => {
         const governanceServiceContract = AxelarGovernanceServiceContract(
           gatewayAddress
         )
+        const gasServiceContract = AxelarGasServiceContract(constants.FLOW_TOKEN_ADDRESS, constants.FLOW_FT_ADDRESS)
+        //Deploy Gas Service Contract to Governance Account
+        await deployContracts({
+          args: {
+            contracts: [gasServiceContract],
+          },
+          authz: governanceUser.authz,
+        })
+
         await deployGovernanceContract({
           args: {
             contractName: governanceServiceContract.name,
@@ -521,7 +531,7 @@ describe('AxelarGateway', () => {
         const deployedContracts = await getDeployedContracts({
           args: { address: governanceUser.addr },
         })
-        expect(deployedContracts).toEqual(['AxelarGovernanceService'])
+        expect(deployedContracts).toEqual(['AxelarGasService','AxelarGovernanceService'])
       })
 
       it("publishes an AxelarGateway Executable capability to the gateway' inbox", async () => {

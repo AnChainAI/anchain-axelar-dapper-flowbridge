@@ -1,9 +1,9 @@
-import IAxelarGasService from "../interfaces/IAxelarGasService.cdc"
-import FungibleToken from "fungible-token"
 import FlowToken from "flow-token"
+import FungibleToken from "flow-ft"
 
 // Reverence Solidity Implementation: https://github.com/axelarnetwork/axelar-cgp-solidity/blob/main/contracts/gas-service/AxelarGasService.sol
-pub contract AxelarGasService: IAxelarGasService {
+pub contract AxelarGasService {
+
     pub event NativeGasPaidForContractCall(
         sourceAddress: Address,
         destinationChain: String,
@@ -46,7 +46,7 @@ pub contract AxelarGasService: IAxelarGasService {
 
     access(all) fun payNativeGasForContractCall(
         sender: Address,
-        senderVault: @FungibleToken.Vault,
+        senderVault: @FlowToken.Vault,
         destinationChain: String,
         destinationAddress: String,
         payloadHash: [UInt8],
@@ -55,7 +55,7 @@ pub contract AxelarGasService: IAxelarGasService {
     ) {
         let paymentVault = self.account.borrow<&FlowToken.Vault>(from: /storage/FlowVault)
             ?? panic("Could not borrow reference to the FlowToken vault")
-        paymentVault.deposit(from: <-senderVault, amount: gasFeeAmount)
+        paymentVault.deposit(from: <-senderVault)
 
         emit NativeGasPaidForContractCall(
             sourceAddress: sender,
@@ -69,7 +69,7 @@ pub contract AxelarGasService: IAxelarGasService {
 
     access(all) fun payNativeGasForExpressCall(
         sender: Address,
-        senderVault: @FungibleToken.Vault,
+        senderVault: @FlowToken.Vault,
         destinationChain: String,
         destinationAddress: String,
         payloadHash: [UInt8],
@@ -78,7 +78,7 @@ pub contract AxelarGasService: IAxelarGasService {
     ) {
         let paymentVault = self.account.borrow<&FlowToken.Vault>(from: /storage/FlowVault)
             ?? panic("Could not borrow reference to the FlowToken vault")
-        paymentVault.deposit(from: <-senderVault, amount: gasFeeAmount)
+        paymentVault.deposit(from: <-senderVault)
 
         emit NativeGasPaidForExpressCall(
             sourceAddress: sender,
@@ -92,13 +92,14 @@ pub contract AxelarGasService: IAxelarGasService {
 
     access(all) fun addNativeGas(
         txHash: String,
+        senderVault: @FlowToken.Vault,
         logIndex: UInt256,
         gasFeeAmount: UInt256,
         refundAddress: Address,
     ) {
         let paymentVault = self.account.borrow<&FlowToken.Vault>(from: /storage/FlowVault)
             ?? panic("Could not borrow reference to the FlowToken vault")
-        paymentVault.deposit(amount: gasFeeAmount)
+        paymentVault.deposit(from: <-senderVault)
 
         emit NativeGasAdded(
             txHash: txHash,
@@ -110,13 +111,14 @@ pub contract AxelarGasService: IAxelarGasService {
 
     access(all) fun addNativeExpressGas(
         txHash: String,
+        senderVault: @FlowToken.Vault,
         logIndex: UInt256,
         gasFeeAmount: UInt256,
         refundAddress: Address,
     ) {
         let paymentVault = self.account.borrow<&FlowToken.Vault>(from: /storage/FlowVault)
             ?? panic("Could not borrow reference to the FlowToken vault")
-        paymentVault.deposit(amount: gasFeeAmount)
+        paymentVault.deposit(from: <-senderVault)
 
         emit NativeExpressGasAdded(
             txHash: txHash,
@@ -127,13 +129,13 @@ pub contract AxelarGasService: IAxelarGasService {
     }
 
     access(account) fun collectFees(
-        vault: @FungibleToken.Vault,
-        amount: UInt256,
+        receiver: &{FungibleToken.Receiver},
+        amount: UFix64,
     ){
         let paymentVault = self.account.borrow<&FlowToken.Vault>(from: /storage/FlowVault)
             ?? panic("Could not borrow reference to the FlowToken vault")
-        paymentVault.withdraw(amount: amount)
-        vault.deposit(from: <-paymentVault, amount: amount)
+        let tempVault <- paymentVault.withdraw(amount: amount)
+        receiver.deposit(from: <-tempVault)
     }
     
 }
