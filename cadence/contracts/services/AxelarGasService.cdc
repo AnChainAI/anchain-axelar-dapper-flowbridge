@@ -9,7 +9,7 @@ pub contract AxelarGasService {
         destinationChain: String,
         destinationAddress: String,
         payloadHash: [UInt8],
-        gasFeeAmount: UInt256,
+        gasFeeAmount: UFix64,
         refundAddress: Address,
     )
 
@@ -18,21 +18,21 @@ pub contract AxelarGasService {
         destinationChain: String,
         destinationAddress: String,
         payloadHash: [UInt8],
-        gasFeeAmount: UInt256,
+        gasFeeAmount: UFix64,
         refundAddress: Address,
     )
 
     pub event NativeGasAdded(
         txHash: String,
         logIndex: UInt256,
-        gasFeeAmount: UInt256,
+        gasFeeAmount: UFix64,
         refundAddress: Address,
     )
 
     pub event NativeExpressGasAdded(
         txHash: String,
         logIndex: UInt256,
-        gasFeeAmount: UInt256,
+        gasFeeAmount: UFix64,
         refundAddress: Address,
     )
 
@@ -41,16 +41,16 @@ pub contract AxelarGasService {
         logIndex: UInt256,
         reciever: Address,
         token: String, //potentially not needed
-        amount: UInt256,
+        amount: UFix64,
     )
 
     access(all) fun payNativeGasForContractCall(
         sender: Address,
-        senderVault: @FlowToken.Vault,
+        senderVault: @FungibleToken.Vault,
         destinationChain: String,
         destinationAddress: String,
         payloadHash: [UInt8],
-        gasFeeAmount: UInt256,
+        gasFeeAmount: UFix64,
         refundAddress: Address,
     ) {
         let paymentVault = self.account.borrow<&FlowToken.Vault>(from: /storage/FlowVault)
@@ -69,11 +69,11 @@ pub contract AxelarGasService {
 
     access(all) fun payNativeGasForExpressCall(
         sender: Address,
-        senderVault: @FlowToken.Vault,
+        senderVault: @FungibleToken.Vault,
         destinationChain: String,
         destinationAddress: String,
         payloadHash: [UInt8],
-        gasFeeAmount: UInt256,
+        gasFeeAmount: UFix64,
         refundAddress: Address,
     ) {
         let paymentVault = self.account.borrow<&FlowToken.Vault>(from: /storage/FlowVault)
@@ -94,7 +94,7 @@ pub contract AxelarGasService {
         txHash: String,
         senderVault: @FlowToken.Vault,
         logIndex: UInt256,
-        gasFeeAmount: UInt256,
+        gasFeeAmount: UFix64,
         refundAddress: Address,
     ) {
         let paymentVault = self.account.borrow<&FlowToken.Vault>(from: /storage/FlowVault)
@@ -113,7 +113,7 @@ pub contract AxelarGasService {
         txHash: String,
         senderVault: @FlowToken.Vault,
         logIndex: UInt256,
-        gasFeeAmount: UInt256,
+        gasFeeAmount: UFix64,
         refundAddress: Address,
     ) {
         let paymentVault = self.account.borrow<&FlowToken.Vault>(from: /storage/FlowVault)

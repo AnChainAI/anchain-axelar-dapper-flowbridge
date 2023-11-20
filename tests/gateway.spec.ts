@@ -27,6 +27,7 @@ import { AxelarGatewayUpdateContract } from './contracts/axelar-gateway-updated.
 import { exec } from 'child_process'
 import fs from 'fs'
 import { AxelarGasServiceContract } from './contracts/axelar-gas-service.contract'
+import { gasServicePay } from './transactions/gas-service-pay'
 /**
  * To setup the testing, make sure you've run
  * the following command to start the flow emulator on a separate terminal:
@@ -62,6 +63,7 @@ describe('AxelarGateway', () => {
   let relayer: FlowAccount
   let admin: FlowAccount
   let governanceUser: FlowAccount
+  let userAccount: FlowAccount
 
   beforeAll(async () => {
     await Emulator.connect()
@@ -500,6 +502,7 @@ describe('AxelarGateway', () => {
       it('deploy an example application contract to governance account', async () => {
         // Create dApp account
         governanceUser = await FlowAccount.from({})
+        userAccount = await FlowAccount.from({})
 
         // Deploys governance application smart contracts to governance account
         const gatewayAddress = admin.addr
@@ -732,11 +735,6 @@ describe('AxelarGateway', () => {
               type: `A.${governanceUser.addr.slice(
                 2
               )}.AxelarGovernanceService.ProposalScheduled`,
-              // data: expect.objectContaining({
-              //   commandId,
-              //   sourceChain,
-              //   sourceAddress,
-              // }),
             }),
             expect.objectContaining({
               type: `A.${admin.addr.slice(2)}.AxelarGateway.Executed`,
@@ -775,6 +773,28 @@ describe('AxelarGateway', () => {
           },
         })
       })
+    })
+    describe('Gas Service', () => {
+      it('creates gas payment', async () => {
+        console.log(
+          await gasServicePay(
+            {
+              constants,
+              args: {
+                gasAddress: governanceUser.addr,
+                isExpress: false,
+                destinationChain: 'destinationChain',
+                destinationAddress: 'destinationAddress',
+                payloadHash: [1, 2, 3],
+                gasFeeAmount: "100.0",
+                refundAddress: userAccount.addr,
+              },
+              authz: userAccount.authz,
+            }
+          )
+        )
+      })
+
     })
   })
 })
