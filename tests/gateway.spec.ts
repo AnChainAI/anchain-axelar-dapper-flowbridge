@@ -28,6 +28,7 @@ import { exec } from 'child_process'
 import fs from 'fs'
 import { AxelarGasServiceContract } from './contracts/axelar-gas-service.contract'
 import { gasServicePay } from './transactions/gas-service-pay'
+import { setupFlowAccount } from './transactions/setup-flow-token-account'
 /**
  * To setup the testing, make sure you've run
  * the following command to start the flow emulator on a separate terminal:
@@ -535,6 +536,19 @@ describe('AxelarGateway', () => {
           args: { address: governanceUser.addr },
         })
         expect(deployedContracts).toEqual(['AxelarGasService','AxelarGovernanceService'])
+      })
+
+      it("setup Flow Token Account on Governance and User Account", async () => {
+        await setupFlowAccount({
+          constants,
+          args: {},
+          authz: governanceUser.authz,
+        })
+        await setupFlowAccount({
+          constants,
+          args: {},
+          authz: userAccount.authz,
+        })
       })
 
       it("publishes an AxelarGateway Executable capability to the gateway' inbox", async () => {

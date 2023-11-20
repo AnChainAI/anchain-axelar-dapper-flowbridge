@@ -53,7 +53,7 @@ pub contract AxelarGasService {
         gasFeeAmount: UFix64,
         refundAddress: Address,
     ) {
-        let paymentVault = self.account.borrow<&FlowToken.Vault>(from: /storage/FlowVault)
+        let paymentVault = self.account.borrow<&FlowToken.Vault>(from: /storage/flowTokenVault)
             ?? panic("Could not borrow reference to the FlowToken vault")
         paymentVault.deposit(from: <-senderVault)
 
@@ -76,7 +76,7 @@ pub contract AxelarGasService {
         gasFeeAmount: UFix64,
         refundAddress: Address,
     ) {
-        let paymentVault = self.account.borrow<&FlowToken.Vault>(from: /storage/FlowVault)
+        let paymentVault = self.account.borrow<&FlowToken.Vault>(from: /storage/flowTokenVault)
             ?? panic("Could not borrow reference to the FlowToken vault")
         paymentVault.deposit(from: <-senderVault)
 
@@ -97,7 +97,7 @@ pub contract AxelarGasService {
         gasFeeAmount: UFix64,
         refundAddress: Address,
     ) {
-        let paymentVault = self.account.borrow<&FlowToken.Vault>(from: /storage/FlowVault)
+        let paymentVault = self.account.borrow<&FlowToken.Vault>(from: /storage/flowTokenVault)
             ?? panic("Could not borrow reference to the FlowToken vault")
         paymentVault.deposit(from: <-senderVault)
 
@@ -116,7 +116,7 @@ pub contract AxelarGasService {
         gasFeeAmount: UFix64,
         refundAddress: Address,
     ) {
-        let paymentVault = self.account.borrow<&FlowToken.Vault>(from: /storage/FlowVault)
+        let paymentVault = self.account.borrow<&FlowToken.Vault>(from: /storage/flowTokenVault)
             ?? panic("Could not borrow reference to the FlowToken vault")
         paymentVault.deposit(from: <-senderVault)
 
@@ -132,7 +132,7 @@ pub contract AxelarGasService {
         receiver: &{FungibleToken.Receiver},
         amount: UFix64,
     ){
-        let paymentVault = self.account.borrow<&FlowToken.Vault>(from: /storage/FlowVault)
+        let paymentVault = self.account.borrow<&FlowToken.Vault>(from: /storage/flowTokenVault)
             ?? panic("Could not borrow reference to the FlowToken vault")
         let tempVault <- paymentVault.withdraw(amount: amount)
         receiver.deposit(from: <-tempVault)
