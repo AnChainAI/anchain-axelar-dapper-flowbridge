@@ -35,17 +35,14 @@ transaction {
 }
   `
 
-export interface SetupFlowtokenAccountArgs {
-}
+export interface SetupFlowtokenAccountArgs {}
 
 export async function setupFlowAccount(
   params: TransactionFunctionParams<SetupFlowtokenAccountArgs>
 ) {
   return await sendTransaction({
     cadence: CODE(params.constants),
-    args: (arg, t) => [
-      
-    ],
+    args: (arg, t) => [],
     authorizations: [params.authz],
     payer: params.authz,
     proposer: params.authz,

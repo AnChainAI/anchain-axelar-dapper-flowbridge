@@ -85,7 +85,7 @@ describe('AxelarGateway', () => {
           contractName: axelarAuthWeightedContract.name,
           contractCode: axelarAuthWeightedContract.code,
           recentOperatorsSet: [
-            operators.map((operator) => operator.signingKey.publicKey.slice(4))
+            operators.map((operator) => operator.signingKey.publicKey.slice(4)),
           ],
           recentWeightsSet: [operators.map(() => 1)],
           recentThresholdSet: [operators.length],
@@ -366,7 +366,7 @@ describe('AxelarGateway', () => {
             payload: Array.from(payload),
           },
           authz: relayer.authz,
-        }),
+        })
       ).rejects.not.toBeNull()
     })
   })
@@ -469,10 +469,12 @@ describe('AxelarGateway', () => {
             contractName: axelarAuthWeightedContract.name,
             contractCode: axelarAuthWeightedContract.code,
             recentOperatorsSet: [
-              operators.map((operator) => operator.signingKey.publicKey.slice(4))
+              operators.map((operator) =>
+                operator.signingKey.publicKey.slice(4)
+              ),
             ],
             recentWeightsSet: [operators.map(() => 1)],
-          recentThresholdSet: [operators.length],
+            recentThresholdSet: [operators.length],
           },
           authz: admin.authz,
         })
@@ -510,7 +512,10 @@ describe('AxelarGateway', () => {
         const governanceServiceContract = AxelarGovernanceServiceContract(
           gatewayAddress
         )
-        const gasServiceContract = AxelarGasServiceContract(constants.FLOW_TOKEN_ADDRESS, constants.FLOW_FT_ADDRESS)
+        const gasServiceContract = AxelarGasServiceContract(
+          constants.FLOW_TOKEN_ADDRESS,
+          constants.FLOW_FT_ADDRESS
+        )
         //Deploy Gas Service Contract to Governance Account
         await deployContracts({
           args: {
@@ -535,10 +540,13 @@ describe('AxelarGateway', () => {
         const deployedContracts = await getDeployedContracts({
           args: { address: governanceUser.addr },
         })
-        expect(deployedContracts).toEqual(['AxelarGasService','AxelarGovernanceService'])
+        expect(deployedContracts).toEqual([
+          'AxelarGasService',
+          'AxelarGovernanceService',
+        ])
       })
 
-      it("setup Flow Token Account on Governance and User Account", async () => {
+      it('setup Flow Token Account on Governance and User Account', async () => {
         await setupFlowAccount({
           constants,
           args: {},
@@ -790,25 +798,44 @@ describe('AxelarGateway', () => {
     })
     describe('Gas Service', () => {
       it('creates gas payment', async () => {
-        console.log(
-          await gasServicePay(
-            {
-              constants,
-              args: {
-                gasAddress: governanceUser.addr,
-                isExpress: false,
-                destinationChain: 'destinationChain',
-                destinationAddress: 'destinationAddress',
-                payloadHash: [1, 2, 3],
-                gasFeeAmount: "100.0",
-                refundAddress: userAccount.addr,
-              },
-              authz: userAccount.authz,
-            }
-          )
+
+        let isExpress = false
+        let destinationChain = 'destinationChain'
+        let destinationAddress = 'destinationAddress'
+        let payloadHash = [1, 2, 3]
+        let gasFeeAmount = '100.0'
+        let refundAddress = userAccount.addr
+        
+        let tx =   await gasServicePay({
+            constants,
+            args: {
+              gasAddress: governanceUser.addr,
+              isExpress: isExpress,
+              destinationChain: destinationChain,
+              destinationAddress: destinationAddress,
+              payloadHash: payloadHash,
+              gasFeeAmount: gasFeeAmount,
+              refundAddress: refundAddress,
+            },
+            authz: userAccount.authz,
+          })
+          console.log(tx.events)
+        expect(tx.events).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              type: `A.${governanceUser.addr.slice(
+                2
+              )}.AxelarGasService.NativeGasPaidForContractCall`,
+              data: expect.objectContaining({
+                sourceAddress: userAccount.addr,
+                destinationChain: destinationChain,
+                destinationAddress: destinationAddress,
+                refundAddress: refundAddress,
+              }),
+            }),
+          ])
         )
       })
-
     })
   })
 })
