@@ -29,6 +29,7 @@ import fs from 'fs'
 import { AxelarGasServiceContract } from './contracts/axelar-gas-service.contract'
 import { gasServicePay } from './transactions/gas-service-pay'
 import { setupFlowAccount } from './transactions/setup-flow-token-account'
+import { gasServiceAdd } from './transactions/gas-service-add'
 /**
  * To setup the testing, make sure you've run
  * the following command to start the flow emulator on a separate terminal:
@@ -798,28 +799,27 @@ describe('AxelarGateway', () => {
     })
     describe('Gas Service', () => {
       it('creates gas payment', async () => {
-
         let isExpress = false
         let destinationChain = 'destinationChain'
         let destinationAddress = 'destinationAddress'
         let payloadHash = [1, 2, 3]
         let gasFeeAmount = '100.0'
         let refundAddress = userAccount.addr
-        
-        let tx =   await gasServicePay({
-            constants,
-            args: {
-              gasAddress: governanceUser.addr,
-              isExpress: isExpress,
-              destinationChain: destinationChain,
-              destinationAddress: destinationAddress,
-              payloadHash: payloadHash,
-              gasFeeAmount: gasFeeAmount,
-              refundAddress: refundAddress,
-            },
-            authz: userAccount.authz,
-          })
-          console.log(tx.events)
+
+        let tx = await gasServicePay({
+          constants,
+          args: {
+            gasAddress: governanceUser.addr,
+            isExpress: isExpress,
+            destinationChain: destinationChain,
+            destinationAddress: destinationAddress,
+            payloadHash: payloadHash,
+            gasFeeAmount: gasFeeAmount,
+            refundAddress: refundAddress,
+          },
+          authz: userAccount.authz,
+        })
+        console.log(tx.events)
         expect(tx.events).toEqual(
           expect.arrayContaining([
             expect.objectContaining({
@@ -830,6 +830,41 @@ describe('AxelarGateway', () => {
                 sourceAddress: userAccount.addr,
                 destinationChain: destinationChain,
                 destinationAddress: destinationAddress,
+                refundAddress: refundAddress,
+              }),
+            }),
+          ])
+        )
+      })
+
+      it('adds gas payment to existing txn', async () => {
+        let isExpress = false
+        let txHash = '0x123abc'
+        let logIndex = 1
+        let gasFeeAmount = '100.0'
+        let refundAddress = userAccount.addr
+
+        let tx = await gasServiceAdd({
+          constants,
+          args: {
+            gasAddress: governanceUser.addr,
+            isExpress: isExpress,
+            txHash: txHash,
+            logIndex: logIndex,
+            gasFeeAmount: gasFeeAmount,
+            refundAddress: refundAddress,
+          },
+          authz: userAccount.authz,
+        })
+        console.log(tx.events)
+        expect(tx.events).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              type: `A.${governanceUser.addr.slice(
+                2
+              )}.AxelarGasService.NativeGasAdded`,
+              data: expect.objectContaining({
+                txHash: txHash,
                 refundAddress: refundAddress,
               }),
             }),

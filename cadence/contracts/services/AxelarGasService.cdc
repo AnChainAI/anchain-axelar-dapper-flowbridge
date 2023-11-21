@@ -92,7 +92,7 @@ pub contract AxelarGasService {
 
     access(all) fun addNativeGas(
         txHash: String,
-        senderVault: @FlowToken.Vault,
+        senderVault: @FungibleToken.Vault,
         logIndex: UInt256,
         gasFeeAmount: UFix64,
         refundAddress: Address,
@@ -111,7 +111,7 @@ pub contract AxelarGasService {
 
     access(all) fun addNativeExpressGas(
         txHash: String,
-        senderVault: @FlowToken.Vault,
+        senderVault: @FungibleToken.Vault,
         logIndex: UInt256,
         gasFeeAmount: UFix64,
         refundAddress: Address,

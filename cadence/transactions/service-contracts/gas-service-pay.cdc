@@ -10,7 +10,7 @@ transaction(
     gasFeeAmount: UFix64,
     refundAddress: Address
 ) {
-    var tempVault:@FlowToken.Vault
+    var tempVault:@FungibleToken.Vault
     let signerAddress: Address
 
     prepare(signer: AuthAccount) {

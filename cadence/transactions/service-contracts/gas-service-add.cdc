@@ -2,34 +2,35 @@ import AxelarGasService from "../services/AxelarGasService"
 import FungibleToken from "fungible-token"
 import FlowToken from "FlowToken"
 
-transaction(
+ transaction(
     isExpress: Bool,
-    senderVault: @FungibleToken.Vault,
-    destinationChain: String,
-    destinationAddress: String,
-    payloadHash: [UInt8],
-    gasFeeAmount: UInt256,
+    txHash: String,
+    logIndex: UInt256,
+    gasFeeAmount: UFix64,
     refundAddress: Address
 ) {
+    var tempVault: @FungibleToken.Vault
     prepare(signer: AuthAccount) {
+        let vaultRef = signer.borrow<&FlowToken.Vault>(from: /storage/flowTokenVault)
+            ?? panic("Could not borrow reference to the owner's vault")
+        self.tempVault <- vaultRef.withdraw(amount: gasFeeAmount)
+        
+    }
 
+    execute {
         if isExpress {
             AxelarGasService.addNativeExpressGas(
-                sender: signer.address,
-                senderVault: <-senderVault,
-                destinationChain: destinationChain,
-                destinationAddress: destinationAddress,
-                payloadHash: payloadHash,
+                txHash: txHash,
+                senderVault: <-self.tempVault,
+                logIndex: logIndex,
                 gasFeeAmount: gasFeeAmount,
                 refundAddress: refundAddress
             )
         } else {
             AxelarGasService.addNativeGas(
-                sender: signer.address,
-                senderVault: <-senderVault,
-                destinationChain: destinationChain,
-                destinationAddress: destinationAddress,
-                payloadHash: payloadHash,
+                txHash: txHash,
+                senderVault: <-self.tempVault,
+                logIndex: logIndex,
                 gasFeeAmount: gasFeeAmount,
                 refundAddress: refundAddress
             )
