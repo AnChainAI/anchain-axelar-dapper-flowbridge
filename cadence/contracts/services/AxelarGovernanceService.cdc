@@ -19,7 +19,7 @@ pub contract AxelarGovernanceService{
     access(self) let updaters: @{Address: Updater}
     access(self) let proposals: @{String: Proposal}
 
-    //Struct for Contract Updates
+    // Struct representing Contract Updates
     pub struct ContractUpdate {
         pub let address: Address
         pub let name: String
