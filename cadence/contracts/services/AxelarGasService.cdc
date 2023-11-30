@@ -2,9 +2,9 @@ import FlowToken from "flow-token"
 import FungibleToken from "flow-ft"
 
 // Reverence Solidity Implementation: https://github.com/axelarnetwork/axelar-cgp-solidity/blob/main/contracts/gas-service/AxelarGasService.sol
-pub contract AxelarGasService {
+access(all) contract AxelarGasService {
 
-    pub event NativeGasPaidForContractCall(
+    access(all) event NativeGasPaidForContractCall(
         sourceAddress: Address,
         destinationChain: String,
         destinationAddress: String,
@@ -13,7 +13,7 @@ pub contract AxelarGasService {
         refundAddress: Address,
     )
 
-    pub event NativeGasPaidForExpressCall(
+    access(all) event NativeGasPaidForExpressCall(
         sourceAddress: Address,
         destinationChain: String,
         destinationAddress: String,
@@ -22,21 +22,21 @@ pub contract AxelarGasService {
         refundAddress: Address,
     )
 
-    pub event NativeGasAdded(
+    access(all) event NativeGasAdded(
         txHash: String,
         logIndex: UInt256,
         gasFeeAmount: UFix64,
         refundAddress: Address,
     )
 
-    pub event NativeExpressGasAdded(
+    access(all) event NativeExpressGasAdded(
         txHash: String,
         logIndex: UInt256,
         gasFeeAmount: UFix64,
         refundAddress: Address,
     )
 
-    pub event Refund(
+    access(all) event Refund(
         txHash: String,
         logIndex: UInt256,
         reciever: Address,
