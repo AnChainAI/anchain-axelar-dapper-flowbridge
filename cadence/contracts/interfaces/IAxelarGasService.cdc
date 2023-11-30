@@ -1,4 +1,4 @@
-pub contract interface IAxelarGasService {
+access(all) contract interface IAxelarGasService {
     pub event NativeGasPaidForContractCall(
         sourceAddress: Address,
         destinationChain: String,
