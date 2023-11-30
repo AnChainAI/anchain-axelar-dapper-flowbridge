@@ -108,6 +108,8 @@ pub contract AxelarGovernanceService{
             let account = self.authCapability.borrow()
             if let account = self.authCapability.borrow() {
                 account.contracts.update__experimental(name: contractName, code: code)
+            } else {
+                return false
             }
             return true
         }
