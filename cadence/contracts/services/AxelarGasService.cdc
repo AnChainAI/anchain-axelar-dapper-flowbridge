@@ -124,6 +124,9 @@ access(all) contract AxelarGasService {
         gasFeeAmount: UFix64,
         refundAddress: Address,
     ) {
+    pre {
+        senderVault.balance > 0.0: "Provided vault is empty"
+    }
         let paymentVault = self.account.borrow<&FlowToken.Vault>(from: /storage/flowTokenVault)
             ?? panic("Could not borrow reference to the FlowToken vault")
         paymentVault.deposit(from: <-senderVault)
