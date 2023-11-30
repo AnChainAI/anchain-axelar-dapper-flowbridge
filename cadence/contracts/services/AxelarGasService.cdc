@@ -50,7 +50,6 @@ pub contract AxelarGasService {
         destinationChain: String,
         destinationAddress: String,
         payloadHash: [UInt8],
-        gasFeeAmount: UFix64,
         refundAddress: Address,
     ) {
         let paymentVault = self.account.borrow<&FlowToken.Vault>(from: /storage/flowTokenVault)
