@@ -3,7 +3,7 @@
 Governance updates on FLOW are required to be executed significantly differently from EVM implementations.  This is due to Flows native "updateability" and utilization of proxy contracts in EVM.
 
 ## Key Differences
-- Flow's Updates/Upgrades are typically done through the Flow CLI compared to EVMs typical deploy and replace proxy upgrades
+- Flow's native abstracted account model allows for natively updatable contracts which are executed through a simple call to the hosting `AuthAccount`'s API compared to EVMs typical deploy and replace proxy upgrades
     - Because of this we must use the cadence .update_expirimental() function to allow a Governance contract to update the parent contract.
 - Proxy contracts can easily be updated by any EVM address as long as the correct access control measures have been met.  In Flow we must give a AuthAccount Capability in order to enable the Governance contract to update the parent contract.
     - This makes it so future governance contract swaps are slightly more complicated as access to the parent contract's account is still needed to hand over the capability.
