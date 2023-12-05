@@ -56,11 +56,12 @@ access(all) contract InterchainTokenService{
     }
 
     access(all) event InterchainTransfer(
-        tokenId: String,
+        tokenAddress: Address,
+        tokenName: String,
         sourceAddress: Address,
         destinationChain: String,
         amount: UFix64,
-        datahash: String
+        datahash: [UInt8]
     )
 
     access(all) event InterchainTransferReceived(
@@ -94,7 +95,24 @@ access(all) contract InterchainTokenService{
 
    }
 
-   access(self) fun _transmitInterchainTransfer(){
+   access(self) fun _transmitInterchainTransfer(contractName: String, contractAddress: Address, destinationChain: String, destinationAddress: String, metadataVersion: UInt32, metadata: [UInt8], amount: UFix64){
+        if (metadataVersion > LATEST_METADATA_VERSION) {
+            panic("Invalid Metadata Version")
+        }
+
+        let datahash = Crypto.hash(metadata, algorithm: HashAlgorithm.SHA3_256)
+
+        emit InterchainTransfer(
+            tokenAddress: contractAddress,
+            tokenName: contractName,
+            sourceAddress: self.account.address,
+            destinationChain: destinationChain,
+            amount: amount,
+            datahash: datahash
+        )
+
+        //"call contract" here with gateway contract
+    }
 
    }
 
@@ -125,7 +143,7 @@ access(all) contract InterchainTokenService{
             let tokenActions <- create TokenActions(contractName: contractName, authAccountCapability: authCapability, adminCapability: adminCapability)
             
             self.account.save(<-tokenActions, to: resourcePath)
-            return self.account.borrow<&Updater>(from: resourcePath)
+            return self.account.borrow<&TokenActions>(from: resourcePath)
         }
         return nil
     }
