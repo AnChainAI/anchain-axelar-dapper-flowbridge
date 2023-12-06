@@ -2,7 +2,7 @@
 
 The interchain token service is an Axelar Executable which handles the processing and launching of cross chain tokens which are supported by the Axelar Network
 
-## Basic Functionalities
+### Basic Functionalities
 
 - ### Token Launching
 
@@ -20,15 +20,15 @@ The interchain token service is an Axelar Executable which handles the processin
 
   - Since contract launching and account management is significantly different from Flow and EVM we will opt for a prelaunch and link method.
   - Steps will look something like the following:
+
     1. A interchain command is received which requests the token to be launched on Flow
-    2. The relayer creates a new flow account using the same public key as the ITS
-    3. The relayer launches the defined and correctly named contract on the new account
-    4. The new account is then linked as a child account to the ITS via the Auth Account Capability.  The AuthAccount Capability will be sent to the ITS's capability inbox
-    5. The ITS will receive a link or token launch command in which it will claim the previously sent capability from its inbox.  This Auth Account Capability will be stored under a storage path such as `/storage/accounts/0xADDRESS`
-    6. The ITS will then create a InterchainToken object which will store a reference to this AuthAccount Capability as well as the Administrator, Minter, and Burner Capability from the child accounts Fungible Token
-  - Questions:
-    - With this parent to many child account structure, what maintenance will be needed for the child accounts?  Will we ever have to add funds to increase the storage capacity for any reason?  Will this be fairly 'set and forget'?
-- ### Distributing Cross Chain Canonical Tokens
+    2. The ITS will create a new account with the same key that is used by the ITS
+    3. The ITS will then launch a new 'InterchainFungibleToken' contract from a deployed template contract
+    4. The ITS will also deploy a FungibleMetadata contract to the account and provide all metadata as initialization variables.
+    5. The new account is then linked as a child account to the ITS via the Auth Account Capability.  The AuthAccount Capability will be sent to the ITS's capability inbox
+    6. The ITS will receive a link or token launch command in which it will claim the previously sent capability from its inbox.  This Auth Account Capability will be stored under a storage path such as `/storage/accounts/0xADDRESS`
+    7. The ITS will then create a InterchainToken object which will store a reference to this AuthAccount Capability as well as the Administrator, Minter, and Burner Capability from the child accounts Fungible Token
+- # Distributing Cross Chain Canonical Tokens
 
   - Steps:
     1. ITS receives a InterchainTransfer for a non native flow token that has already been launched by the system defined above.
