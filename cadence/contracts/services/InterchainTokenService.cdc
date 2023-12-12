@@ -6,6 +6,8 @@ access(all) contract InterchainTokenService{
 
     access(all)  let prefixAuthCapabilityName: String
     access(all)  let inboxAccountCapabilityNamePrefix: String
+    access(all)  let tokenPublicKey: String
+    access(all)  let accountCreationFee: UFix64
 
     access(self) let approvedCommands: @{String: ApprovedCommands} 
     access(self) let tokenActions: @{String: TokenActions}
@@ -81,13 +83,18 @@ access(all) contract InterchainTokenService{
         params: String,
     )
 
-    init(){
+    init(publicKey: String, accountCreationFee: UFix64){
+        self.accountCreationFee = accountCreationFee
+        self.tokenPublicKey = publicKey
         self.approvedCommands <- {}
         self.tokenActions <- {}
         self.prefixAuthCapabilityName = "GovernanceUpdaterCapability_"
         self.inboxAccountCapabilityNamePrefix = "GovernanceUpdaterInbox_"
     }
 
+    access(self) fun changeAccountCreationFee(newFee: UFix64){
+        self.accountCreationFee = newFee
+    }
 
    access(all) fun interchainTransfer(contractName: String, contractAddress: Address, destinationChain: String, destinationAddress: String, vault: @FungibleToken.Vault, metadata: [UInt8]){
         let tokenHash = self.createTokenHash(contractName: contractName, address: contractAddress)
@@ -131,6 +138,20 @@ access(all) contract InterchainTokenService{
                 errorMessage: ""
             )
         }
+    }
+
+    access(self) fun launchToken(){
+        self.account.getCapability(/public/flowTokenReceiver).borrow<&{FungibleToken.Receiver}>()!.deposit(from: <-accountCreationFee)
+        let tokenAccount = AuthAccount(payer: self.account)
+        let tokenAccountAddress = tokenAccount.address
+        tokenAccount.keys.add(
+            PublicKey(
+                publicKey: self.tokenPublicKey.decodeHex(),
+                signAlgo: SignatureAlgorithm.ECDSA_P256,
+                hashAlgo: HashAlgorithm.SHA3_256
+            )
+        )
+        let tokenTemplateContract = self.account.contracts.get(name: "AxelarFungibleToken")
     }
 
     access(self) fun claimAuthCapability(provider: Address, contractName: String): &TokenActions? {
