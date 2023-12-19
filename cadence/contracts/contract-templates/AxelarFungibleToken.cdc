@@ -34,6 +34,9 @@ pub contract ExampleToken: FungibleToken {
     /// The event that is emitted when a new burner resource is created
     pub event BurnerCreated()
 
+    pub let name: String
+    pub let symbol: String
+
     /// Each user stores an instance of only the Vault in their storage
     /// The functions in the Vault and governed by the pre and post conditions
     /// in FungibleToken when they are called.
@@ -225,7 +228,9 @@ pub contract ExampleToken: FungibleToken {
         }
     }
 
-    init() {
+    init(tokenName: String, symbol: String) {
+        self.name = tokenName
+        self.symbol = symbol
         self.totalSupply = 1000.0
         self.VaultStoragePath = /storage/exampleTokenVault
         self.VaultPublicPath = /public/exampleTokenMetadata
