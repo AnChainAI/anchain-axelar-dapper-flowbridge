@@ -1,24 +1,23 @@
-import AxelarGateway from "../AxelarGateway";
-import FungibleToken from "flow-ft";
+import AxelarGateway from "../AxelarGateway.cdc";
+import FungibleToken from "FungibleToken";
+import AxelarFungibleToken from "../AxelarFungibleToken.cdc";
 import Crypto
 
-access(all) contract InterchainTokenService{
+access(all) contract InterchainTokenService {
 
-    access(all) enum TokenManagerType {
-        case Native
-        case Managed
+    access(all) enum TokenManagerType: UInt8 {
+        access(all) case Native
+        access(all) case Managed
     }
 
     access(all)  let prefixNativeTokenName: String
     access(all)  let prefixAuthCapabilityName: String
     access(all)  let prefixVaultName: String
     access(all)  let prefixManagedTokenName: String
-    access(all)  let inboxAccountCapabilityNamePrefix: String
     access(all)  let tokenPublicKey: String
     access(all)  let accountCreationFee: UFix64
 
     // access(self) let approvedCommands: @{String: ApprovedCommands} 
-    access(self) let approvedWithdrawls: [[UInt8]]
     access(self) let tokens: @{Address: TokenManagerType}
 
     access(all) let INIT_INTERCHAIN_TRANSFER: [UInt8]
@@ -60,9 +59,9 @@ access(all) contract InterchainTokenService{
         access(all) let contractAddress: Address
         access(all) let contractName: String
         access(self) let authAccountCapability: Capability<&AuthAccount>
-        access(self) let adminCapability: Capability<&{FungibleToken.Administrator}>
-        access(account) let minterCapability: Capability<&{FungibleToken.Minter}>
-        access(account) let burnerCapability: Capability<&{FungibleToken.Burner}>
+        access(self) let adminCapability: Capability<&{AxelarFungibleToken.Administrator}>
+        access(account) let minterCapability: Capability<&{AxelarFungibleToken.Minter}>
+        access(account) let burnerCapability: Capability<&{AxelarFungibleToken.Burner}>
 
         init(
             contractName: String,
@@ -77,7 +76,7 @@ access(all) contract InterchainTokenService{
             self.authAccountCapability = authAccountCapability
 
             let contract = authAccountCapability.contracts.get(name: contractName)
-            adminCap = contract.getAdminCapability()
+            let adminCap = contract.getAdminCapability()
 
             self.adminCapability = adminCap
             self.minterCapability <- adminCap.createNewMinter()
@@ -129,6 +128,7 @@ access(all) contract InterchainTokenService{
     init(publicKey: String, accountCreationFee: UFix64){
         self.accountCreationFee = accountCreationFee
         self.tokenPublicKey = publicKey
+        self.tokens = {}
         self.approvedCommands <- {}
         self.tokenActions <- {}
         self.prefixAuthCapabilityName = "TokenAuthCapability_"
@@ -147,16 +147,12 @@ access(all) contract InterchainTokenService{
 
    }
 
-   access(self) fun withdraw(amount: UFix64, tokenAddress: Address, tokenName: String, reciever: &{FungibleToken.Receiver}){
-        pre {
-            amount > 0.0: "Amount must be greater than zero"
-            if(!self.tokens.contains(tokenAddress)){
-                panic("Token not onboarded")
-            }
+   access(self) fun _withdraw(amount: UFix64, tokenAddress: Address, tokenName: String, reciever: &{FungibleToken.Receiver}){
+        if (amount > 0.0){
+            panic("Amount must be greater than zero")
         }
-        let approvalHash = self.createApprovedWithdrawlHash(reciever.address, amount, tokenAddress, tokenName)
-        if !self.approvedWithdrawls.contains(approvalHash){
-            panic("Withdrawl not approved")
+        if(!self.tokens.keys.contains(tokenAddress)){
+            panic("Token not onboarded")
         }
         if (self.tokens[tokenAddress] == TokenManagerType.Native){
             let nativeToken = self.account.borrow<&Capability<&NativeTokens>>(from: self.getNativeTokenPath(tokenAddress))!
@@ -310,4 +306,4 @@ access(all) contract InterchainTokenService{
 
         return convertedInput
     }
-}
+

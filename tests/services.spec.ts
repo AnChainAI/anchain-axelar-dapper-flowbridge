@@ -34,6 +34,10 @@ import { TemplateFungibleToken } from './contracts/template-fungible-token.contr
 import { TemplateMetadataViews } from './contracts/template-metadata-views.contract'
 import { TemplateFungibleTokenMetadataViews } from './contracts/template-fungible-token-metadata-views'
 import { deployTokenTemplate } from './transactions/deploy-example-token-contract'
+import { AxelarInterchainTokenService } from './contracts/axelar-interchain-token-service.contract'
+import { account } from '@onflow/fcl'
+import { deployInterchainTokenService } from './transactions/deploy-interchain-token-service-contract'
+import { TemplateFungibleTokenInterface } from './contracts/template-fungible-token-interface.contract'
 /**
  * To setup the testing, make sure you've run
  * the following command to start the flow emulator on a separate terminal:
@@ -495,6 +499,11 @@ describe('Service Contracts', () => {
       const templateMetadataViews = TemplateMetadataViews(
         constants
       )
+
+      const templateFungibleTokenInterface = TemplateFungibleTokenInterface(
+        constants,
+        admin.addr
+      )
       await deployContracts({
         args: {
           contracts: [templateMetadataViews],
@@ -511,15 +520,37 @@ describe('Service Contracts', () => {
 
       await deployTokenTemplate({
         args: {
+          contractName: templateFungibleTokenInterface.name,
+          contractCode: templateFungibleTokenInterface.code,
+        },
+        authz: admin.authz,
+      })
+
+      await deployTokenTemplate({
+        args: {
           contractName: templateFungibleToken.name,
           contractCode: templateFungibleToken.code,
         },
         authz: admin.authz,
       })
 
+      
     })
     it('deploy interchain token service to gateway account', async () => {
-
+      const publicKey = 'MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC0pRXniCz8T19PXlcb+DXVl03LkfBxEjToCiFq0Hzf9rJctg4oYQ+7725r28+JAxQnf5EadsgqsFuss0RPFZ4rpPh1r28cE8JSieRvya3qCpmDWi3yq5+F3RTcLF7T9qdSFKH1nL6BMLGANTPIghgTTyhNPsOr4D1MesMalLTdIQIDAQAB'
+      const interchainTokenServiceContract = AxelarInterchainTokenService(
+        admin.addr,
+        constants,
+      )
+      // await deployInterchainTokenService({
+      //   args: {
+      //     contractName: interchainTokenServiceContract.name,
+      //     contractCode: interchainTokenServiceContract.code,
+      //     publicKey: publicKey,
+      //     accountCreationFee: 0.001,
+      //   },
+      //   authz: admin.authz,
+      // })
     })
   })
 })

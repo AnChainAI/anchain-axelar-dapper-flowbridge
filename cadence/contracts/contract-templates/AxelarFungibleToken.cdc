@@ -1,9 +1,10 @@
 import FungibleToken from "FungibleToken"
+import AxelarFungibleTokenInterface from "AxelarFungibleTokenInterface"
 import MetadataViews from "MetadataViews"
 // import "MetadataViews"
 import FungibleTokenMetadataViews from "FungibleTokenMetadataViews"
 
-pub contract AxelarFungibleToken: FungibleToken {
+pub contract AxelarFungibleToken: FungibleToken, AxelarFungibleTokenInterface{
 
     /// Total supply of AxelarFungibleTokens in existence
     pub var totalSupply: UFix64
