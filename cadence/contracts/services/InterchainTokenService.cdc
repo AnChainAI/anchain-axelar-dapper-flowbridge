@@ -147,17 +147,13 @@ access(all) contract InterchainTokenService{
 
    }
 
-   access(all) resource interface SenderIdentity {}
-
-   access(all) fun withdraw(senderIdentity: Capability<&{InterchainTokenService.SenderIdentity}>, amount: UFix64, tokenAddress: Address, tokenName: String, reciever: &{FungibleToken.Receiver}){
+   access(self) fun withdraw(amount: UFix64, tokenAddress: Address, tokenName: String, reciever: &{FungibleToken.Receiver}){
         pre {
             amount > 0.0: "Amount must be greater than zero"
             if(!self.tokens.contains(tokenAddress)){
                 panic("Token not onboarded")
             }
         }
-        
-        //maybe I dont need senderIdentity?  still need to test it out and see if reciever.address can be called
         let approvalHash = self.createApprovedWithdrawlHash(reciever.address, amount, tokenAddress, tokenName)
         if !self.approvedWithdrawls.contains(approvalHash){
             panic("Withdrawl not approved")

@@ -1,10 +1,11 @@
-import "FungibleToken"
-import "MetadataViews"
-import "FungibleTokenMetadataViews"
+import FungibleToken from "FungibleToken"
+import MetadataViews from "MetadataViews"
+// import "MetadataViews"
+import FungibleTokenMetadataViews from "FungibleTokenMetadataViews"
 
-pub contract ExampleToken: FungibleToken {
+pub contract AxelarFungibleToken: FungibleToken {
 
-    /// Total supply of ExampleTokens in existence
+    /// Total supply of AxelarFungibleTokens in existence
     pub var totalSupply: UFix64
 
     /// Storage and Public Paths
@@ -29,7 +30,7 @@ pub contract ExampleToken: FungibleToken {
     pub event TokensBurned(amount: UFix64)
 
     /// The event that is emitted when a new minter resource is created
-    pub event MinterCreated(allowedAmount: UFix64)
+    pub event MinterCreated()
 
     /// The event that is emitted when a new burner resource is created
     pub event BurnerCreated()
@@ -82,7 +83,7 @@ pub contract ExampleToken: FungibleToken {
         /// @param from: The Vault resource containing the funds that will be deposited
         ///
         pub fun deposit(from: @FungibleToken.Vault) {
-            let vault <- from as! @ExampleToken.Vault
+            let vault <- from as! @AxelarFungibleToken.Vault
             self.balance = self.balance + vault.balance
             emit TokensDeposited(amount: vault.balance, to: self.owner?.address)
             vault.balance = 0.0
@@ -91,11 +92,11 @@ pub contract ExampleToken: FungibleToken {
 
         destroy() {
             if self.balance > 0.0 {
-                ExampleToken.totalSupply = ExampleToken.totalSupply - self.balance
+                AxelarFungibleToken.totalSupply = AxelarFungibleToken.totalSupply - self.balance
             }
         }
 
-        /// The way of getting all the Metadata Views implemented by ExampleToken
+        /// The way of getting all the Metadata Views implemented by AxelarFungibleToken
         ///
         /// @return An array of Types defining the implemented views. This value will be used by
         ///         developers to know which parameter to pass to the resolveView() method.
@@ -109,7 +110,7 @@ pub contract ExampleToken: FungibleToken {
             ]
         }
 
-        /// The way of getting a Metadata View out of the ExampleToken
+        /// The way of getting a Metadata View out of the AxelarFungibleToken
         ///
         /// @param view: The Type of the desired view.
         /// @return A structure representing the requested view.
@@ -141,19 +142,19 @@ pub contract ExampleToken: FungibleToken {
                     )
                 case Type<FungibleTokenMetadataViews.FTVaultData>():
                     return FungibleTokenMetadataViews.FTVaultData(
-                        storagePath: ExampleToken.VaultStoragePath,
-                        receiverPath: ExampleToken.ReceiverPublicPath,
-                        metadataPath: ExampleToken.VaultPublicPath,
+                        storagePath: AxelarFungibleToken.VaultStoragePath,
+                        receiverPath: AxelarFungibleToken.ReceiverPublicPath,
+                        metadataPath: AxelarFungibleToken.VaultPublicPath,
                         providerPath: /private/exampleTokenVault,
-                        receiverLinkedType: Type<&ExampleToken.Vault{FungibleToken.Receiver}>(),
-                        metadataLinkedType: Type<&ExampleToken.Vault{FungibleToken.Balance, MetadataViews.Resolver}>(),
-                        providerLinkedType: Type<&ExampleToken.Vault{FungibleToken.Provider}>(),
-                        createEmptyVaultFunction: (fun (): @ExampleToken.Vault {
-                            return <-ExampleToken.createEmptyVault()
+                        receiverLinkedType: Type<&AxelarFungibleToken.Vault{FungibleToken.Receiver}>(),
+                        metadataLinkedType: Type<&AxelarFungibleToken.Vault{FungibleToken.Balance, MetadataViews.Resolver}>(),
+                        providerLinkedType: Type<&AxelarFungibleToken.Vault{FungibleToken.Provider}>(),
+                        createEmptyVaultFunction: (fun (): @AxelarFungibleToken.Vault {
+                            return <-AxelarFungibleToken.createEmptyVault()
                         })
                     )
                 case Type<FungibleTokenMetadataViews.TotalSupply>():
-                    return FungibleTokenMetadataViews.TotalSupply(totalSupply: ExampleToken.totalSupply)
+                    return FungibleTokenMetadataViews.TotalSupply(totalSupply: AxelarFungibleToken.totalSupply)
             }
             return nil
         }
@@ -177,9 +178,9 @@ pub contract ExampleToken: FungibleToken {
         /// @param allowedAmount: The maximum quantity of tokens that the minter could create
         /// @return The Minter resource that would allow to mint tokens
         ///
-        pub fun createNewMinter(allowedAmount: UFix64): @Minter {
-            emit MinterCreated(allowedAmount: allowedAmount)
-            return <-create Minter(allowedAmount: allowedAmount)
+        pub fun createNewMinter(): @Minter {
+            emit MinterCreated()
+            return <-create Minter()
         }
 
         /// Function that creates and returns a new burner resource
@@ -196,11 +197,11 @@ pub contract ExampleToken: FungibleToken {
     ///
     pub resource Minter {
 
-        pub fun mintTokens(amount: UFix64): @ExampleToken.Vault {
+        pub fun mintTokens(amount: UFix64): @AxelarFungibleToken.Vault {
             pre {
                 amount > 0.0: "Amount minted must be greater than zero"
             }
-            ExampleToken.totalSupply = ExampleToken.totalSupply + amount
+            AxelarFungibleToken.totalSupply = AxelarFungibleToken.totalSupply + amount
             emit TokensMinted(amount: amount)
             return <-create Vault(balance: amount)
         }
@@ -221,7 +222,7 @@ pub contract ExampleToken: FungibleToken {
         /// @param from: The Vault resource containing the tokens to burn
         ///
         pub fun burnTokens(from: @FungibleToken.Vault) {
-            let vault <- from as! @ExampleToken.Vault
+            let vault <- from as! @AxelarFungibleToken.Vault
             let amount = vault.balance
             destroy vault
             emit TokensBurned(amount: amount)
@@ -250,7 +251,7 @@ pub contract ExampleToken: FungibleToken {
 
         // Create a public capability to the stored Vault that only exposes
         // the `balance` field and the `resolveView` method through the `Balance` interface
-        self.account.link<&ExampleToken.Vault{FungibleToken.Balance}>(
+        self.account.link<&AxelarFungibleToken.Vault{FungibleToken.Balance}>(
             self.VaultPublicPath,
             target: self.VaultStoragePath
         )

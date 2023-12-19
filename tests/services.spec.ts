@@ -2,7 +2,7 @@ import { exec } from 'child_process'
 import { randomUUID } from 'crypto'
 import fs from 'fs'
 import { ethers } from 'hardhat'
-import { sortBy } from 'lodash'
+import { sortBy, template } from 'lodash'
 import util from 'util'
 import { FlowConstants } from '../utils/flow'
 import { EMULATOR_CONST, Emulator, FlowAccount } from '../utils/testing'
@@ -30,6 +30,10 @@ import { publishExecutableCapability } from './transactions/publish-executable-c
 import { setupFlowAccount } from './transactions/setup-flow-token-account'
 import { dataToHexEncodedMessage } from './utils/data-to-hex-encoded-message'
 import { getWeightedSignatureProof } from './utils/get-weighted-signatures-proof'
+import { TemplateFungibleToken } from './contracts/template-fungible-token.contract'
+import { TemplateMetadataViews } from './contracts/template-metadata-views.contract'
+import { TemplateFungibleTokenMetadataViews } from './contracts/template-fungible-token-metadata-views'
+import { deployTokenTemplate } from './transactions/deploy-example-token-contract'
 /**
  * To setup the testing, make sure you've run
  * the following command to start the flow emulator on a separate terminal:
@@ -475,6 +479,47 @@ describe('Service Contracts', () => {
           }),
         ])
       )
+    })
+  })
+  describe('Interchain Token Service', () => {
+    it('deploy template fungible token contract', async () => {
+
+      const templateFungibleToken = TemplateFungibleToken(
+        constants,
+        admin.addr 
+      )
+      const templateFungibleTokenMetadataViews = TemplateFungibleTokenMetadataViews(
+        constants,
+        admin.addr
+      )
+      const templateMetadataViews = TemplateMetadataViews(
+        constants
+      )
+      await deployContracts({
+        args: {
+          contracts: [templateMetadataViews],
+        },
+        authz: admin.authz,
+      })
+
+      await deployContracts({
+        args: {
+          contracts: [templateFungibleTokenMetadataViews],
+        },
+        authz: admin.authz,
+      })
+
+      await deployTokenTemplate({
+        args: {
+          contractName: templateFungibleToken.name,
+          contractCode: templateFungibleToken.code,
+        },
+        authz: admin.authz,
+      })
+
+    })
+    it('deploy interchain token service to gateway account', async () => {
+
     })
   })
 })
