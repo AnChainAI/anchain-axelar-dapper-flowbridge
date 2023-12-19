@@ -31,7 +31,6 @@ const CODE = (address: string, constants: FlowConstants) => `
                 txHash: txHash,
                 senderVault: <-self.tempVault,
                 logIndex: logIndex,
-                gasFeeAmount: gasFeeAmount,
                 refundAddress: refundAddress
             )
         } else {
@@ -39,7 +38,6 @@ const CODE = (address: string, constants: FlowConstants) => `
                 txHash: txHash,
                 senderVault: <-self.tempVault,
                 logIndex: logIndex,
-                gasFeeAmount: gasFeeAmount,
                 refundAddress: refundAddress
             )
         }

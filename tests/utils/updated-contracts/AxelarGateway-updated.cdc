@@ -1,4 +1,4 @@
-import AxelarAuthWeighted from 0x164c8e66132cd076
+import AxelarAuthWeighted from 0x9380c6be3b09f31a
 import AddressUtils from 0xf8d6e0586b0a20c7
 import Crypto
 
