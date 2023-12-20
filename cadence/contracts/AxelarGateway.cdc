@@ -10,11 +10,9 @@ access(all) contract AxelarGateway {
 
   access(all) resource CGPCommand {
     access(all) var commandId: String
-    access(all) var isExecuted: Bool
 
     init(commandId: String) {
       self.commandId = commandId
-      self.isExecuted = false
     }
   }
 
@@ -68,30 +66,22 @@ access(all) contract AxelarGateway {
 
   access(all) struct ExecutionStatus {
     access(all) let isExecuted: Bool
-    access(all) let statusCode: UInt64
-    access(all) let errorMessage: String
+    access(all) let errorMessage: String? /*	An error message with 20 characters in length if it exists */
 
-    init(
-      isExecuted: Bool,
-      statusCode: UInt64,
-      errorMessage: String
-    ) {
+    init(isExecuted: Bool, errorMessage: String?) {
+      pre {
+        errorMessage == nil || errorMessage!.length <= 20 : "Error message length must be less than or equal to 20"
+      }
+
       self.isExecuted = isExecuted
-      self.statusCode = statusCode
       self.errorMessage = errorMessage
     }
   }
-
-  access(self) let executedCommands: {String: ExecutionStatus}
-  access(self) let approvedCommands: @{String: CGPCommand}
 
   init() {        
     self.SELECTOR_TRANSFER_OPERATORSHIP = Crypto.hash("transferOperatorship".utf8, algorithm: HashAlgorithm.KECCAK_256)
     self.SELECTOR_APPROVE_CONTRACT_CALL = Crypto.hash("approveContractCall".utf8, algorithm: HashAlgorithm.KECCAK_256)
     self.PREFIX_APP_CAPABILITY_NAME = "AppCapabilityPath"
-
-    self.executedCommands = {}
-    self.approvedCommands <- {}
   }
 
   access(all) struct ParamHandler {
@@ -146,6 +136,38 @@ access(all) contract AxelarGateway {
 
   access(all) resource interface SenderIdentity {}
 
+  access(all) resource EternalStorage {
+    access(all) let executedCommands: {String: ExecutionStatus}
+    access(all) let approvedCommands: @{String: CGPCommand}
+
+    destroy() {
+      destroy self.approvedCommands
+    }
+
+    access(all) fun storeApprovedCommand(commandId: String, cgpCommand: @CGPCommand) {
+      let oldCgpCommand <- self.approvedCommands[commandId] <- cgpCommand
+      destroy oldCgpCommand
+    }
+
+    access(all) fun storeExecutedCommand(commandId: String, status: ExecutionStatus) {
+      self.executedCommands.insert(key: commandId, status)
+    }
+
+    access(all) fun destroyApprovedCommand(commandId: String) {
+      let oldCGPCommand <- self.approvedCommands.remove(key: commandId)
+      let id = oldCGPCommand?.commandId
+      destroy <- oldCGPCommand
+      if (id != nil) {
+        emit Executed(commandId: id!)
+      }
+    }
+
+    init() {
+      self.executedCommands = {}
+      self.approvedCommands <- {}
+    }
+  }
+
   access(all) fun callContract(senderIdentity: Capability<&{AxelarGateway.SenderIdentity}>, destinationChain: String, destinationContractAddress: String, payload: [UInt8]) {
     pre {
       senderIdentity.check() && senderIdentity.borrow()!.owner != nil: "Cannot borrow reference to SenderIdentity capability"
@@ -161,15 +183,21 @@ access(all) contract AxelarGateway {
   }
 
   access(all) fun getCommandExecutionStatus(commandId: String): ExecutionStatus? {
-    return self.executedCommands[commandId]
+    let eternalStorage = self.getEternalStorage(commandId: commandId)
+      ?? panic("Could not get Eternal Storage for command id: ".concat(commandId))
+    return eternalStorage.executedCommands[commandId]
   }
 
   access(all) fun isCommandApproved(commandId: String): Bool {
-    return self.approvedCommands[commandId] != nil ? true : false
+    let eternalStorage = self.getEternalStorage(commandId: commandId)
+      ?? panic("Could not get Eternal Storage for command id: ".concat(commandId))
+    return eternalStorage.approvedCommands[commandId] != nil ? true : false
   }
 
   access(all) fun isCommandExecuted(commandId: String): Bool {
-    return self.executedCommands[commandId]?.isExecuted ?? false
+    let eternalStorage = self.getEternalStorage(commandId: commandId)
+      ?? panic("Could not get Eternal Storage for command id: ".concat(commandId))
+    return eternalStorage.executedCommands[commandId]?.isExecuted ?? false
   }
 
   access(all) fun execute(
@@ -201,6 +229,8 @@ access(all) contract AxelarGateway {
         continue
       }
 
+      let eternalStorage = self.getEternalStorage(commandId: commandId)!
+
       let commandHash = Crypto.hash(commands[i].utf8, algorithm: HashAlgorithm.KECCAK_256)
       let paramHandler = ParamHandler(params: params[i])
 
@@ -213,24 +243,22 @@ access(all) contract AxelarGateway {
 
           if transferOperatorShipParams != nil {
 
-            self.executedCommands.insert(
-              key: commandId,
-              ExecutionStatus( 
+            eternalStorage.storeExecutedCommand(
+              commandId: commandId,
+              status: ExecutionStatus( 
                 isExecuted: true,
-                statusCode: 0,
-                errorMessage: ""
+                errorMessage: nil
               )
             )
-            // we only need to track this was executed, since there's no other processing for this command
+
             let transferStatus = AxelarAuthWeighted.transferOperatorship(message: encodedMessage, operators: operators, weights: weights, threshold: threshold, signatures: signatures, params: transferOperatorShipParams!)
             if transferStatus.isTransferred {
               emit Executed(commandId: commandId)
             } else {
-              self.executedCommands.insert(
-                key: commandId,
-                ExecutionStatus( 
+              eternalStorage.storeExecutedCommand(
+                commandId: commandId,
+                status: ExecutionStatus( 
                   isExecuted: false,
-                  statusCode: transferStatus.statusCode,
                   errorMessage: transferStatus.errorMessage
                 )
               )
@@ -242,7 +270,7 @@ access(all) contract AxelarGateway {
 
         if approveContractCallParams != nil {
           // store the CGPCommand Resource for later use
-          let oldCgpCommand <- self.approvedCommands[commandId] <- create CGPCommand(commandId: commandId)
+          eternalStorage.storeApprovedCommand(commandId: commandId, cgpCommand: <- create CGPCommand(commandId: commandId))
 
           emit ContractCallApproved (
             commandId: commandId,
@@ -253,8 +281,6 @@ access(all) contract AxelarGateway {
             sourceTxHash: approveContractCallParams!.sourceTxHash,
             sourceEventIndex: approveContractCallParams!.sourceEventIndex
           )
-
-          self.destroyCGPCommand(cgpCommand: <- oldCgpCommand)
         }
       } else {
         continue
@@ -289,21 +315,19 @@ access(all) contract AxelarGateway {
     }
 
     // Get a reference to the CGPCommand resource to pass into the executable method
-    let cgpCommand = (&self.approvedCommands[commandId] as &CGPCommand?) ?? panic("Could not borrow reference to CGP Command")
+    let eternalStorage = self.getEternalStorage(commandId: commandId) ?? panic("Could not get eternal storage")
+    let cgpCommand = (&eternalStorage.approvedCommands[commandId] as &CGPCommand?) ?? panic("Could not borrow reference to CGP Command")
 
     // Call the execute method from the dApp
     let executionStatus = appCapability!.borrow()!.executeApp(commandResource: cgpCommand, sourceChain: sourceChain, sourceAddress: sourceAddress, payload: payload)
 
     // Record command execution
-    self.executedCommands.insert(
-      key: commandId,
-      executionStatus
-    )
+    eternalStorage.storeExecutedCommand(commandId: commandId, status: executionStatus)
 
     // If the execute method is called successfully,
     // remove the cgp command resource and destroy the resource
     if executionStatus.isExecuted {
-      self.destroyCGPCommand(cgpCommand: <- self.approvedCommands.remove(key: commandId))
+      eternalStorage.destroyApprovedCommand(commandId: commandId)
     }
 
     return executionStatus.isExecuted
@@ -311,14 +335,6 @@ access(all) contract AxelarGateway {
 
   access(all) fun getAppCapabilityStoragePath(_ address: Address): StoragePath? {
     return StoragePath(identifier: self.PREFIX_APP_CAPABILITY_NAME.concat(address.toString()))
-  }
-
-  access(self) fun destroyCGPCommand(cgpCommand: @CGPCommand?) {
-    let commandId = cgpCommand?.commandId
-    destroy cgpCommand
-    if commandId != nil {
-      emit Executed(commandId: commandId!)
-    }
   }
 
   access(self) fun convertDataToHexEncodedMessage(commandIds: [String], commands: [String], params: [[AnyStruct]]): String {
@@ -385,5 +401,27 @@ access(all) contract AxelarGateway {
     }
 
     panic("Invalid Address")
+  }
+
+  access(self) fun getEternalStorage(commandId: String): &AxelarGateway.EternalStorage? {
+    let storagePath = self.deriveStorageManagerPath(commandId: commandId)
+    if storagePath == nil {
+      return nil
+    }
+
+    let eternalStorage = self.account.borrow<&AxelarGateway.EternalStorage>(from: storagePath!)
+    
+    // If no storage resource exist, try creating one
+    if eternalStorage == nil {
+      self.account.save(<- create EternalStorage(), to: storagePath!)
+      return self.account.borrow<&AxelarGateway.EternalStorage>(from: storagePath!)
+    }
+
+    return eternalStorage
+  }
+
+  access(self) fun deriveStorageManagerPath(commandId: String): StoragePath? {
+    let lastByte = commandId.utf8[commandId.length - 1]
+    return StoragePath(identifier: "StorageManager_".concat(lastByte.toString()))
   }
 }
