@@ -1,4 +1,5 @@
 import AxelarGateway from "../AxelarGateway.cdc"
+import FungibleToken from "FungibleToken"
 import Crypto
 
 pub contract AxelarGovernanceService{
@@ -161,8 +162,8 @@ pub contract AxelarGovernanceService{
         self.updaters <- {}
         self.proposals <- {}
 
-        let axelarExecutabe <- create ExecutabeResource()
-        self.account.save(<-axelarExecutabe, to: /storage/AxelarExecutable)
+        let axelarExecutable <- create ExecutableResource()
+        self.account.save(<-axelarExecutable, to: /storage/AxelarExecutable)
     }
 
     
@@ -194,7 +195,7 @@ pub contract AxelarGovernanceService{
     }
 
     access(all) resource ExecutableResource: AxelarGateway.Executable, AxelarGateway.SenderIdentity {
-        access(all) fun executeApp(commandResource: &AxelarGateway.CGPCommand, sourceChain: String, sourceAddress: String, payload: [UInt8]): AxelarGateway.ExecutionStatus{
+        access(all) fun executeApp(commandResource: &AxelarGateway.CGPCommand, sourceChain: String, sourceAddress: String, payload: [UInt8], receiver: &{FungibleToken.Receiver}?): AxelarGateway.ExecutionStatus{
             if (sourceChain != AxelarGovernanceService.governanceChain || sourceAddress != AxelarGovernanceService.governanceAddress){
                 panic("Not Governance")
             }

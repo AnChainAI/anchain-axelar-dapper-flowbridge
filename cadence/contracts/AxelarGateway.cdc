@@ -1,5 +1,6 @@
 import AxelarAuthWeighted from "./auth/AxelarAuthWeighted.cdc"
 import AddressUtils from "./standard/AddressUtils.cdc"
+import FungibleToken from "flow-ft"
 import Crypto
 
 // Main GateWay contract for audit
@@ -141,7 +142,7 @@ access(all) contract AxelarGateway {
   }
 
   access(all) resource interface Executable {
-    access(all) fun executeApp(commandResource: &AxelarGateway.CGPCommand, sourceChain: String, sourceAddress: String, payload: [UInt8]): ExecutionStatus
+    access(all) fun executeApp(commandResource: &AxelarGateway.CGPCommand, sourceChain: String, sourceAddress: String, payload: [UInt8], receiver:  &{FungibleToken.Receiver}?): AxelarGateway.ExecutionStatus
   }
 
   access(all) resource interface SenderIdentity {}
@@ -264,7 +265,7 @@ access(all) contract AxelarGateway {
     }
   }
 
-  access(all) fun executeApp(commandId: String, sourceChain: String, sourceAddress: String, contractAddress: String, payload: [UInt8]): Bool {
+  access(all) fun executeApp(commandId: String, sourceChain: String, sourceAddress: String, contractAddress: String, payload: [UInt8], receiver:  &{FungibleToken.Receiver}?): Bool {
     // Check to see if command id has already been executed
     if (self.isCommandExecuted(commandId: commandId)) {
       panic("Command id: ".concat(commandId).concat(" is already executed"))
@@ -292,7 +293,7 @@ access(all) contract AxelarGateway {
     let cgpCommand = (&self.approvedCommands[commandId] as &CGPCommand?) ?? panic("Could not borrow reference to CGP Command")
 
     // Call the execute method from the dApp
-    let executionStatus = appCapability!.borrow()!.executeApp(commandResource: cgpCommand, sourceChain: sourceChain, sourceAddress: sourceAddress, payload: payload)
+    let executionStatus = appCapability!.borrow()!.executeApp(commandResource: cgpCommand, sourceChain: sourceChain, sourceAddress: sourceAddress, payload: payload, receiver: receiver)
 
     // Record command execution
     self.executedCommands.insert(

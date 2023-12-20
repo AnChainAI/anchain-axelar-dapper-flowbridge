@@ -64,7 +64,7 @@ access(all) contract AxelarGasService {
             destinationChain: destinationChain,
             destinationAddress: destinationAddress,
             payloadHash: payloadHash,
-            gasFeeAmount: gasFeeAmount,
+            gasFeeAmount: paymentVault.balance,
             refundAddress: refundAddress,
         )
     }
@@ -75,7 +75,6 @@ access(all) contract AxelarGasService {
         destinationChain: String,
         destinationAddress: String,
         payloadHash: [UInt8],
-        gasFeeAmount: UFix64,
         refundAddress: Address,
     ) {
     pre {
@@ -90,7 +89,7 @@ access(all) contract AxelarGasService {
             destinationChain: destinationChain,
             destinationAddress: destinationAddress,
             payloadHash: payloadHash,
-            gasFeeAmount: gasFeeAmount,
+            gasFeeAmount: paymentVault.balance,
             refundAddress: refundAddress,
         )
     }
@@ -99,7 +98,6 @@ access(all) contract AxelarGasService {
         txHash: String,
         senderVault: @FungibleToken.Vault,
         logIndex: UInt256,
-        gasFeeAmount: UFix64,
         refundAddress: Address,
     ) {
     pre {
@@ -112,7 +110,7 @@ access(all) contract AxelarGasService {
         emit NativeGasAdded(
             txHash: txHash,
             logIndex: logIndex,
-            gasFeeAmount: gasFeeAmount,
+            gasFeeAmount: paymentVault.balance,
             refundAddress: refundAddress,
         )
     }
@@ -121,7 +119,6 @@ access(all) contract AxelarGasService {
         txHash: String,
         senderVault: @FungibleToken.Vault,
         logIndex: UInt256,
-        gasFeeAmount: UFix64,
         refundAddress: Address,
     ) {
     pre {
@@ -134,7 +131,7 @@ access(all) contract AxelarGasService {
         emit NativeExpressGasAdded(
             txHash: txHash,
             logIndex: logIndex,
-            gasFeeAmount: gasFeeAmount,
+            gasFeeAmount: paymentVault.balance,
             refundAddress: refundAddress,
         )
     }

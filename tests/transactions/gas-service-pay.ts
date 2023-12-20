@@ -36,7 +36,6 @@ const CODE = (address: string, constants: FlowConstants) => `
                 destinationChain: destinationChain,
                 destinationAddress: destinationAddress,
                 payloadHash: payloadHash,
-                gasFeeAmount: gasFeeAmount,
                 refundAddress: refundAddress
             )
         } else {
@@ -46,7 +45,6 @@ const CODE = (address: string, constants: FlowConstants) => `
                 destinationChain: destinationChain,
                 destinationAddress: destinationAddress,
                 payloadHash: payloadHash,
-                gasFeeAmount: gasFeeAmount,
                 refundAddress: refundAddress
             )
         }

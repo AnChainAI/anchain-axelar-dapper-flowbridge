@@ -1,35 +1,35 @@
-import { publishExecutableCapability } from './transactions/publish-executable-capability'
-import { AxelarAuthWeightedContract } from './contracts/axelar-auth-weighted.contract'
-import { ExampleApplicationContract } from './contracts/example-application.contract'
-import { getWeightedSignatureProof } from './utils/get-weighted-signatures-proof'
-import { dataToHexEncodedMessage } from './utils/data-to-hex-encoded-message'
-import { AxelarGatewayContract } from './contracts/axelar-gateway.contract'
-import { Emulator, FlowAccount, EMULATOR_CONST } from '../utils/testing'
-import { deployAuthContract } from './transactions/deploy-auth-contract'
-import { getDeployedContracts } from './scripts/get-deployed-contracts'
-import { getApprovedCommandData } from './scripts/get-example-app-data'
-import { deployContracts } from './transactions/deploy-contracts'
-import { callContract } from './transactions/call-contract'
-import { executeApp } from './transactions/execute-app'
-import { execute } from './transactions/execute'
-import { FlowConstants } from '../utils/flow'
+import { exec } from 'child_process'
 import { randomUUID } from 'crypto'
+import fs from 'fs'
 import { ethers } from 'hardhat'
 import { sortBy } from 'lodash'
 import util from 'util'
-import { AxelarGovernanceServiceContract } from './contracts/axelar-governance-service.contract'
-import { deployGovernanceContract } from './transactions/deploy-governance-contract'
-import { getProposalEta } from './scripts/get-proposal-eta'
-import { executeGovernanceProposal } from './transactions/execute-governance-proposal'
-import { getContractCode } from './scripts/get-contract-code'
-import { publishAuthCapabilityToGovernance } from './transactions/publish-auth-capability'
-import { AxelarGatewayUpdateContract } from './contracts/axelar-gateway-updated.contract'
-import { exec } from 'child_process'
-import fs from 'fs'
+import { FlowConstants } from '../utils/flow'
+import { EMULATOR_CONST, Emulator, FlowAccount } from '../utils/testing'
+import { AxelarAuthWeightedContract } from './contracts/axelar-auth-weighted.contract'
 import { AxelarGasServiceContract } from './contracts/axelar-gas-service.contract'
-import { gasServicePay } from './transactions/gas-service-pay'
-import { setupFlowAccount } from './transactions/setup-flow-token-account'
+import { AxelarGatewayUpdateContract } from './contracts/axelar-gateway-updated.contract'
+import { AxelarGatewayContract } from './contracts/axelar-gateway.contract'
+import { AxelarGovernanceServiceContract } from './contracts/axelar-governance-service.contract'
+import { ExampleApplicationContract } from './contracts/example-application.contract'
+import { getContractCode } from './scripts/get-contract-code'
+import { getDeployedContracts } from './scripts/get-deployed-contracts'
+import { getApprovedCommandData } from './scripts/get-example-app-data'
+import { getProposalEta } from './scripts/get-proposal-eta'
+import { callContract } from './transactions/call-contract'
+import { deployAuthContract } from './transactions/deploy-auth-contract'
+import { deployContracts } from './transactions/deploy-contracts'
+import { deployGovernanceContract } from './transactions/deploy-governance-contract'
+import { execute } from './transactions/execute'
+import { executeApp } from './transactions/execute-app'
+import { executeGovernanceProposal } from './transactions/execute-governance-proposal'
 import { gasServiceAdd } from './transactions/gas-service-add'
+import { gasServicePay } from './transactions/gas-service-pay'
+import { publishAuthCapabilityToGovernance } from './transactions/publish-auth-capability'
+import { publishExecutableCapability } from './transactions/publish-executable-capability'
+import { setupFlowAccount } from './transactions/setup-flow-token-account'
+import { dataToHexEncodedMessage } from './utils/data-to-hex-encoded-message'
+import { getWeightedSignatureProof } from './utils/get-weighted-signatures-proof'
 /**
  * To setup the testing, make sure you've run
  * the following command to start the flow emulator on a separate terminal:
@@ -96,7 +96,8 @@ describe('AxelarGateway', () => {
       // Deploys dependent smart contracts to admin account
       const axelarGatewayContract = AxelarGatewayContract(
         admin.addr,
-        utilsAddress
+        utilsAddress,
+        constants
       )
       await deployContracts({
         args: {
@@ -122,7 +123,8 @@ describe('AxelarGateway', () => {
       // Deploys example application smart contracts to dApp account
       const gatewayAddress = admin.addr
       const exampleApplicationContract = ExampleApplicationContract(
-        gatewayAddress
+        gatewayAddress,
+        constants
       )
       await deployContracts({
         args: {
@@ -482,7 +484,8 @@ describe('AxelarGateway', () => {
         // Deploys dependent smart contracts to admin account
         const axelarGatewayContract = AxelarGatewayContract(
           admin.addr,
-          utilsAddress
+          utilsAddress,
+          constants
         )
         await deployContracts({
           args: {
@@ -511,7 +514,8 @@ describe('AxelarGateway', () => {
         // Deploys governance application smart contracts to governance account
         const gatewayAddress = admin.addr
         const governanceServiceContract = AxelarGovernanceServiceContract(
-          gatewayAddress
+          gatewayAddress,
+          constants
         )
         const gasServiceContract = AxelarGasServiceContract(
           constants.FLOW_TOKEN_ADDRESS,
