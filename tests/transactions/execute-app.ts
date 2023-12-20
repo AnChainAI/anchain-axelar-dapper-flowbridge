@@ -8,6 +8,7 @@ const CODE = (constants: FlowConstants) => `
 import AxelarGateway from ${constants.FLOW_ADMIN_ADDRESS}
 
 transaction(commandId: String, sourceChain: String, sourceAddress: String, contractAddress: String, payload: [UInt8]) {
+  prepare(acct: AuthAccount) {}
   execute{
     AxelarGateway.executeApp(commandId: commandId, sourceChain: sourceChain, sourceAddress: sourceAddress, contractAddress: contractAddress, payload: payload)
   }
@@ -37,7 +38,7 @@ export async function executeApp(
         t.Array(t.UInt8),
       ),
     ],
-    authorizations: [],
+    authorizations: [params.authz],
     payer: params.authz,
     proposer: params.authz,
     limit: 9999,

@@ -8,14 +8,19 @@ const CODE = (constants: FlowConstants) => `
 import AxelarGateway from ${constants.FLOW_ADMIN_ADDRESS}
 
 transaction(destinationChain: String, destinationContractAddress: String, payload: [UInt8]) {
-    let sender: Address
-    prepare(acct: AuthAccount) {
-        self.sender = acct.address
+  let senderIdentityCap: Capability<&{AxelarGateway.SenderIdentity}>
+  prepare(acct: AuthAccount) {
+    if !acct.getCapability<&{AxelarGateway.SenderIdentity}>(/private/AxelarSenderIdentity).check() {
+      acct.unlink(/private/AxelarSenderIdentity)
+      self.senderIdentityCap = acct.link<&{AxelarGateway.SenderIdentity}>(/private/AxelarSenderIdentity, target: /storage/AxelarExecutable) ?? panic("Could not create Axelar Sender Identity capability")
+    } else {
+      self.senderIdentityCap = acct.getCapability<&{AxelarGateway.SenderIdentity}>( /private/AxelarSenderIdentity)
     }
+  }
 
-    execute {
-        AxelarGateway.callContract(sender: self.sender, destinationChain: destinationChain, destinationContractAddress: destinationContractAddress, payload: payload)
-    }
+  execute {
+    AxelarGateway.callContract(senderIdentity: self.senderIdentityCap, destinationChain: destinationChain, destinationContractAddress: destinationContractAddress, payload: payload)
+  }
 }
 `
 

@@ -21,15 +21,21 @@ import { sortBy } from 'lodash'
  * To setup the testing, make sure you've run
  * the following command to start the flow emulator on a separate terminal:
  *
- *  flow emulator
+ * -> flow emulator
  *
- * To run this testing suite, open a different terminal
+ * To setup the flow emulator, open a different terminal
  * from the flow emulator terminal, and run the following command:
  *
- *  npm test -- gateway.spec.ts
+ * -> npm run emulator:setup
+ *
+ * Then, to run the this testing suite,
+ * run the following command:
+ *
+ * -> npm test -- gateway.spec.ts
  */
 describe('AxelarGateway', () => {
   const defaultAbiCoder = ethers.AbiCoder.defaultAbiCoder()
+  const utilsAddress = '0xf8d6e0586b0a20c7'
   const wallets = Array.from({ length: 10 }).map(() =>
     ethers.Wallet.createRandom(),
   )
@@ -63,16 +69,19 @@ describe('AxelarGateway', () => {
         args: {
           contractName: axelarAuthWeightedContract.name,
           contractCode: axelarAuthWeightedContract.code,
-          recentOperators: operators.map((operator) =>
-            operator.signingKey.publicKey.slice(4),
-          ),
-          recentWeights: operators.map(() => 1),
-          recentThreshold: operators.length,
+          recentOperatorsSet: [
+            operators.map((operator) => operator.signingKey.publicKey.slice(4)),
+          ],
+          recentWeightsSet: [operators.map(() => 1)],
+          recentThresholdSet: [operators.length],
         },
         authz: admin.authz,
       })
       // Deploys dependent smart contracts to admin account
-      const axelarGatewayContract = AxelarGatewayContract(admin.addr)
+      const axelarGatewayContract = AxelarGatewayContract(
+        admin.addr,
+        utilsAddress,
+      )
       await deployContracts({
         args: {
           contracts: [axelarGatewayContract],
@@ -325,6 +334,24 @@ describe('AxelarGateway', () => {
         sourceAddress,
         payload: Array.from(payload).map((n) => n.toString()),
       })
+    })
+
+    it('should fail when trying to call app execute with same command id', async () => {
+      // Send a transaction from the relayer to call the executeApp method
+      // with the same command id and expect it to panic
+      await expect(
+        executeApp({
+          constants,
+          args: {
+            commandId,
+            sourceChain,
+            sourceAddress,
+            contractAddress,
+            payload: Array.from(payload),
+          },
+          authz: relayer.authz,
+        }),
+      ).rejects.not.toBeNull()
     })
   })
 

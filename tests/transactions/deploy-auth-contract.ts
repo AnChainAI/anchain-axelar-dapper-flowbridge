@@ -4,18 +4,18 @@ const CODE = `
 transaction(
   contractName: String,
   contractCode: String,
-  recentOperators: [String],
-  recentWeights: [UInt256],
-  recentThreshold: UInt256
+  recentOperatorsSet: [[String]],
+  recentWeightsSet: [[UInt256]],
+  recentThresholdSet: [UInt256]
 ) {
   prepare(signer: AuthAccount) {
     if !signer.contracts.names.contains(contractName) {
       signer.contracts.add(
         name: contractName, 
         code: contractCode.decodeHex(),
-        recentOperators: recentOperators,
-        recentWeights: recentWeights,
-        recentThreshold: recentThreshold
+        recentOperatorsSet: recentOperatorsSet,
+        recentWeightsSet: recentWeightsSet,
+        recentThresholdSet: recentThresholdSet
       )
     }
   }
@@ -25,9 +25,9 @@ transaction(
 export interface DeployAuthContractArgs {
   readonly contractName: string
   readonly contractCode: string
-  readonly recentOperators: string[]
-  readonly recentWeights: number[]
-  readonly recentThreshold: number
+  readonly recentOperatorsSet: string[][]
+  readonly recentWeightsSet: number[][]
+  readonly recentThresholdSet: number[]
 }
 
 export async function deployAuthContract(
@@ -38,12 +38,18 @@ export async function deployAuthContract(
     args: (arg, t) => [
       arg(params.args.contractName, t.String),
       arg(Buffer.from(params.args.contractCode).toString('hex'), t.String),
-      arg(params.args.recentOperators, t.Array(t.String)),
       arg(
-        params.args.recentWeights.map((n) => n.toString()),
+        params.args.recentOperatorsSet,
+        t.Array(params.args.recentOperatorsSet.map(() => t.Array(t.String))),
+      ),
+      arg(
+        params.args.recentWeightsSet.map((set) => set.map((n) => n.toString())),
+        t.Array(params.args.recentWeightsSet.map(() => t.Array(t.UInt256))),
+      ),
+      arg(
+        params.args.recentThresholdSet.map((n) => n.toString()),
         t.Array(t.UInt256),
       ),
-      arg(params.args.recentThreshold.toString(), t.UInt256),
     ],
     authorizations: [params.authz],
     payer: params.authz,
