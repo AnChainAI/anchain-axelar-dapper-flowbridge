@@ -21,87 +21,77 @@ access(all) contract InterchainTokenService {
     // access(self) let approvedCommands: @{String: ApprovedCommands} 
     access(self) let tokens: {Address: TokenManagerType}
 
+    access(self) let nativeTokens: @{Address: NativeTokens}
+    access(self) let managedTokens: @{Address: ManagedTokens}
+
     access(all) let INIT_INTERCHAIN_TRANSFER: [UInt8]
 
     access(all) resource interface NativeTokensInterface{
         access(all) contractAddress: Address
         access(all) contractName: String
-        access(account) vaultRef: &FungibleToken.Vault
-
-        access(account) fun withdraw(amount: UFix64): @FungibleToken.Vault
+        access(account) vaultRef: StoragePath
     }
 
     access(all) resource interface ManagedTokensInterface{
         access(all) contractAddress: Address
         access(all) contractName: String
-        access(account) authAccountCapability: &AuthAccount
-        access(account) adminCapability: @AxelarFungibleTokenInterface.Administrator
-        access(account) minterCapability: @AxelarFungibleTokenInterface.Minter
-        access(account) burnerCapability: @AxelarFungibleTokenInterface.Burner
-
-        access(account) fun burn(amount: UFix64)
+        access(account) adminCapability: StoragePath
+        access(account) minterCapability: StoragePath
+        access(account) burnerCapability: StoragePath
     }
 
     access(all) resource NativeTokens: NativeTokensInterface{
         access(all) let contractAddress: Address
         access(all) let contractName: String
-        access(account) let vaultRef: &FungibleToken.Vault
+        access(all) let vaultRef: StoragePath
 
         init(
             contractName: String,
             contractAddress: Address,
-            vaultRef: &FungibleToken.Vault,
+            vaultRef: StoragePath,
         ) {
             self.contractAddress = contractAddress
             self.contractName = contractName
             self.vaultRef = vaultRef
         }
+    }
 
-        access(account) fun withdraw(amount: UFix64): @FungibleToken.Vault{
-            return <- self.vaultRef.withdraw(amount: amount)
-        }
+    access(self) fun createNativeTokens(contractName: String, contractAddress: Address, vaultRef: StoragePath): @NativeTokens{
+        return <- create NativeTokens(
+            contractName: contractName,
+            contractAddress: contractAddress,
+            vaultRef: vaultRef,
+        )
     }
 
     access(all) resource ManagedTokens: ManagedTokensInterface{
         access(all) let contractAddress: Address
         access(all) let contractName: String
-        access(account) let authAccountCapability: &AuthAccount
-        access(account) let adminCapability: @AxelarFungibleTokenInterface.Administrator
-        access(account) let minterCapability: @AxelarFungibleTokenInterface.Minter
-        access(account) let burnerCapability: @AxelarFungibleTokenInterface.Burner
+        access(account) let adminCapability: StoragePath
+        access(account) let minterCapability: StoragePath
+        access(account) let burnerCapability: StoragePath
 
         init(
             contractName: String,
-            authAccountCapability: Capability<&AuthAccount>,
+            authAccount: AuthAccount,
         ) {
-            // Validate given Capability
-            if !authAccountCapability.check() {
-                panic("Account capability is invalid for account: ".concat(authAccountCapability.address.toString()))
-            }
-            self.contractAddress = authAccountCapability.borrow()!.address
+            self.contractAddress = authAccount.address
             self.contractName = contractName
-            self.authAccountCapability = authAccountCapability.borrow()!
 
-            let contract = self.authAccountCapability.contracts.borrow<&AxelarFungibleTokenInterface>(name: contractName)
-            let adminCap = contract.getAdminCapability()
+            let contract = authAccount.contracts.borrow<&AxelarFungibleTokenInterface>(name: contractName)
+            let adminCap <- contract!.getAdminCapability()
+            let minterCap <- adminCap.createNewMinter()
+            let burnerCap <- adminCap.createNewBurner()
 
-            self.adminCapability <- adminCap
-            self.minterCapability <- adminCap.createNewMinter()
-            self.burnerCapability <- adminCap.createNewBurner()
+            InterchainTokenService.account.save(<-adminCap, to: InterchainTokenService.getAdminCapabilityStoragePath(self.contractAddress)!)
+            InterchainTokenService.account.save(<-minterCap, to: InterchainTokenService.getMinterCapabilityStoragePath(self.contractAddress)!)
+            InterchainTokenService.account.save(<-burnerCap, to: InterchainTokenService.getBurnerCapabilityStoragePath(self.contractAddress)!)
+            self.adminCapability = InterchainTokenService.getAdminCapabilityStoragePath(self.contractAddress)!
+            self.minterCapability = InterchainTokenService.getMinterCapabilityStoragePath(self.contractAddress)!
+            self.burnerCapability = InterchainTokenService.getBurnerCapabilityStoragePath(self.contractAddress)!
         }
 
-        access(account) fun burn(amount: UFix64){
-            self.burnerCapability.burn(amount: amount)
-        }
     }
-
-    access(all) event WithdrawlApproved(
-        approvalHash: [UInt8],
-        tokenAddress: Address,
-        tokenName: String,
-        amount: UFix64,
-        destinationAddress: Address,
-    )
 
     access(all) event TokenContractLaunched(
         contractName: String,
@@ -140,6 +130,8 @@ access(all) contract InterchainTokenService {
         self.accountCreationFee = accountCreationFee
         self.tokenPublicKey = publicKey
         self.tokens = {}
+        self.nativeTokens <- {}
+        self.managedTokens <- {}
         self.LATEST_METADATA_VERSION = 0
         self.INIT_INTERCHAIN_TRANSFER = [0x00]
         self.prefixAuthCapabilityName = "TokenAuthCapability_"
@@ -152,39 +144,45 @@ access(all) contract InterchainTokenService {
         self.accountCreationFee = newFee
     }
 
-   access(all) fun interchainTransfer(contractName: String, contractAddress: Address, destinationChain: String, destinationAddress: String, vault: @FungibleToken.Vault, metadata: [UInt8]){
-        let tokenHash = self.createTokenHash(contractName: contractName, address: contractAddress)
+    // public interface for initiating interhcain transfer
+   access(all) fun interchainTransfer(senderIdentity: Capability<&{AxelarGateway.SenderIdentity}>, contractName: String, contractAddress: Address, destinationChain: String, destinationAddress: String, vault: @FungibleToken.Vault, metadata: [UInt8]){
+        pre {
+            senderIdentity.check() && senderIdentity.borrow()!.owner != nil: "Cannot borrow reference to SenderIdentity capability"
+        }
         let amount = vault.balance
+        self._takeToken(tokenAddress: contractAddress, tokenName: contractName, vault: <-vault)
 
+        //TODO: add metadata version check, awaiting ABI encode/decode support
+
+        self._transmitInterchainTransfer(senderIdentity: senderIdentity, contractName: contractName, contractAddress: contractAddress, destinationChain: destinationChain, destinationAddress: destinationAddress, metadataVersion: 0, metadata: metadata, amount: amount)
    }
 
-   access(self) fun _withdraw(amount: UFix64, tokenAddress: Address, tokenName: String, reciever: &{FungibleToken.Receiver}){
-        if (amount > 0.0){
-            panic("Amount must be greater than zero")
-        }
-        if(!self.tokens.keys.contains(tokenAddress)){
-            panic("Token not onboarded")
-        }
+   access(self) fun _takeToken(tokenAddress: Address, tokenName: String, vault: @FungibleToken.Vault){
         if (self.tokens[tokenAddress] == TokenManagerType.Native){
-            // let nativeToken = self.account.load<@InterchainTokenService.NativeTokens>(from: self.getNativeTokenPath(tokenAddress)!)!
-            let nativeToken = self.account.borrow<&{NativeTokensInterface}>(from: self.getNativeTokenPath(tokenAddress)!)!
-            // let nativeToken = self.account.borrow<&Capability<&NativeTokens>>(from: self.getNativeTokenPath(tokenAddress)!)!
-            // if !nativeToken.check() {
-            //     panic("Token capability is invalid for token: ".concat(tokenAddress.toString()))
-            // }
-            // let vault = nativeToken.vaultRef
-            // let tempVault = vault.withdraw(amount: amount)
-            let tempVault <- nativeToken.withdraw(amount: amount)
-            reciever.deposit(from: <-tempVault)
+            // create nativeToken reference
+            let nativeToken = (&self.nativeTokens[tokenAddress] as &NativeTokens?) ?? panic("could not borrow native token ref")
+            
+            //borrow the coresponding native token vault
+            let tokenVault <- self.account.load<@FungibleToken.Vault>(from: nativeToken.vaultRef)!
+
+            //withdraw from vault and deposit to bridge vault
+            tokenVault.deposit(from: <-vault)
+
+            //save vault back to storage
+            self.account.save(<- tokenVault, to: nativeToken.vaultRef)
         } else {
-            // let tokenManager = self.account.getCapability(self.getManagedTokenPath(tokenAddress)!)!.borrow<&ManagedTokens>()!
-            let tokenManager = self.account.borrow<&{ManagedTokensInterface}>(from: self.getManagedTokenPath(tokenAddress)!)!
-            //let tokenManager <- self.account.load<@InterchainTokenService.ManagedTokens>(from: self.getManagedTokenPath(tokenAddress)!)!
-            tokenManager.burn(amount: amount)
+
+            let managedToken = (&self.managedTokens[tokenAddress] as &ManagedTokens?) ?? panic("could not borrow managed token ref")
+
+            let burnCap <- self.account.load<@AxelarFungibleTokenInterface.Burner>(from: managedToken.burnerCapability)!
+
+            burnCap.burnTokens(from: <-vault)
+
+            self.account.save(<- burnCap, to: managedToken.burnerCapability)
         }
    }
 
-   access(self) fun _transmitInterchainTransfer(contractName: String, contractAddress: Address, destinationChain: String, destinationAddress: String, metadataVersion: UInt32, metadata: [UInt8], amount: UFix64){
+   access(self) fun _transmitInterchainTransfer(senderIdentity: Capability<&{AxelarGateway.SenderIdentity}>, contractName: String, contractAddress: Address, destinationChain: String, destinationAddress: String, metadataVersion: UInt32, metadata: [UInt8], amount: UFix64){
         if (metadataVersion > self.LATEST_METADATA_VERSION) {
             panic("Invalid Metadata Version")
         }
@@ -194,37 +192,56 @@ access(all) contract InterchainTokenService {
         emit InterchainTransfer(
             tokenAddress: contractAddress,
             tokenName: contractName,
-            sourceAddress: self.account.address,
+            sourceAddress: senderIdentity.address,
             destinationChain: destinationChain,
             amount: amount,
             datahash: datahash
         )
 
-        //"call contract" here with gateway contract
+        //Awaiting ABI.Encode/decode support to parse metadata
+
+        AxelarGateway.callContract(
+            senderIdentity: senderIdentity,
+            destinationChain: destinationChain,
+            destinationContractAddress: destinationAddress,
+            payload: metadata
+        )
     }
-
-   
-
-   
 
     access(self) fun _processCommand(commandSelector: [UInt8], payload: [UInt8]){
         //call function based on commandSelector
     }
 
-    access(self) fun _approveTokenWithdrawl(depositAddress: Address, amount: UFix64, tokenAddress: Address, tokenName: String, receiver: &{FungibleToken.Receiver}){
-        let approvalHash = self.createApprovedWithdrawlHash(withdrawlAddress: depositAddress, amount: amount, tokenAddress: tokenAddress, tokenName: tokenName)
-        // self.approvedWithdrawls.append(approvalHash)
-        emit WithdrawlApproved(
-            approvalHash: approvalHash,
-            tokenAddress: tokenAddress,
-            tokenName: tokenName,
-            amount: amount,
-            destinationAddress: depositAddress,
-        )
-    }
+    access(self) fun _withdraw(amount: UFix64, tokenAddress: Address, tokenName: String, reciever: &{FungibleToken.Receiver}){
+        if (amount > 0.0){
+            panic("Amount must be greater than zero")
+        }
+        if(!self.tokens.keys.contains(tokenAddress)){
+            panic("Token not onboarded")
+        }
+        if (self.tokens[tokenAddress] == TokenManagerType.Native){
+            // create nativeToken reference
+            let nativeToken = (&self.nativeTokens[tokenAddress] as &NativeTokens?) ?? panic("could not borrow native token ref")
+            
+            //borrow the coresponding native token vault
+            let vault <- self.account.load<@FungibleToken.Vault>(from: nativeToken.vaultRef)!
+
+            //withdraw from vault and deposit to reciever
+            let tempVault <- vault.withdraw(amount: amount)
+            reciever.deposit(from: <-tempVault)
+
+            //save vault back to storage
+            self.account.save(<- vault, to: nativeToken.vaultRef)
+        } else {
+            let managedToken = (&self.managedTokens[tokenAddress] as &ManagedTokens?) ?? panic("could not borrow managed token ref")
+            let mintCap <- self.account.load<@AxelarFungibleTokenInterface.Minter>(from: managedToken.minterCapability)!
+            let mintVault <- mintCap.mintTokens(amount: amount)!
+            reciever.deposit(from: <-mintVault)
+            self.account.save(<- mintCap, to: managedToken.minterCapability)
+        }
+   }
 
     access(self) fun _launchToken(name: String, symbol: String): Address{
-        self.account.getCapability(/public/flowTokenReceiver).borrow<&{FungibleToken.Receiver}>()!.deposit(from: <-self.accountCreationFee)
         let tokenAccount = AuthAccount(payer: self.account)
         let tokenAccountAddress = tokenAccount.address
         let key = PublicKey(
@@ -249,26 +266,23 @@ access(all) contract InterchainTokenService {
             tokenName: name,
             tokenSymbol: symbol,
         )
-        // let tokenActions <- create TokenActions(contractName: "AxelarFungibleToken", authAccountCapability: tokenAccount)
-        // self.account.save(<-tokenActions, to: self.getManagedTokenPath(tokenAccountAddress)!)
+        let managedTokens <- create ManagedTokens(contractName: "AxelarFungibleToken", authAccount: tokenAccount)
+        self.managedTokens[tokenAccountAddress] <-! managedTokens
         self.tokens[tokenAccountAddress] = TokenManagerType.Managed
 
         return tokenAccountAddress
     }
 
     access(self) fun _onboardNativeFungibleToken(address: Address, contractName: String){
+        //Get the token account and create an empty vault
         let tokenAccount = getAccount(address)
-        self.account.save( <- tokenAccount.contracts.borrow<&FungibleToken>(name: contractName)!.createEmptyVault(), to: self.getVaultPath(address)!) ?? panic("Could not create vault")
-        self.account.save(<- create NativeTokens(contractName: contractName, contractAddress: address, vaultRef: self.account.borrow<&FungibleToken.Vault>(from: getVaultPath(address))!), to: self.getNativeTokenPath(address)!)
+        let emptyVault <- tokenAccount.contracts.borrow<&FungibleToken>(name: contractName)!.createEmptyVault()
+        
+        //save empty vault to storage path and store native token resource an dictionary
+        self.account.save( <- emptyVault, to: self.getVaultPath(address)!)
+        let nativeToken <- self.createNativeTokens(contractName: contractName, contractAddress: address, vaultRef: self.getVaultPath(address)!)
+        self.nativeTokens[address] <-! nativeToken
         self.tokens[address] = self.TokenManagerType.Native
-    }
-
-    access(all) fun getNativeTokenPath(_ address: Address): StoragePath? {
-        return StoragePath(identifier: self.prefixNativeTokenName.concat(address.toString()))
-    }
-
-    access(all) fun getManagedTokenPath(_ address: Address): StoragePath? {
-        return StoragePath(identifier: self.prefixManagedTokenName.concat(address.toString()))
     }
 
     access(all) fun getVaultPath(_ address: Address): StoragePath? {
@@ -279,12 +293,20 @@ access(all) contract InterchainTokenService {
         return StoragePath(identifier: self.prefixAuthCapabilityName.concat(address.toString()))
     }
 
-    access(all) fun createTokenHash(contractName: String, address: Address): [UInt8]{
-        return Crypto.hash(self.convertInputsToUtf8([contractName, address]) , algorithm: HashAlgorithm.KECCAK_256)
+    access(all) fun getMinterCapabilityStoragePath(_ address: Address): StoragePath? {
+        return StoragePath(identifier: self.prefixAuthCapabilityName.concat(address.toString()).concat("_Minter"))
     }
 
-    access(all) fun createApprovedWithdrawlHash(withdrawlAddress: Address, amount: UFix64, tokenAddress: Address, tokenName: String): [UInt8]{
-        return Crypto.hash(self.convertInputsToUtf8([withdrawlAddress, amount, tokenAddress, tokenName]) , algorithm: HashAlgorithm.KECCAK_256)
+    access(all) fun getBurnerCapabilityStoragePath(_ address: Address): StoragePath? {
+        return StoragePath(identifier: self.prefixAuthCapabilityName.concat(address.toString()).concat("_Burner"))
+    }
+
+    access(all) fun getAdminCapabilityStoragePath(_ address: Address): StoragePath? {
+        return StoragePath(identifier: self.prefixAuthCapabilityName.concat(address.toString()).concat("_Admin"))
+    }
+
+    access(all) fun createTokenHash(contractName: String, address: Address): [UInt8]{
+        return Crypto.hash(self.convertInputsToUtf8([contractName, address]) , algorithm: HashAlgorithm.KECCAK_256)
     }
 
     access(self) fun convertInputsToUtf8(_ inputs: [AnyStruct]): [UInt8] {
