@@ -194,6 +194,11 @@ pub contract AxelarFungibleToken: FungibleToken, AxelarFungibleTokenInterface{
         }
     }
 
+    access(account) fun getAdminCapability(): @Administrator{
+        return <- create Administrator()
+    }
+
+
     /// Resource object that token admin accounts can hold to mint new tokens.
     ///
     pub resource Minter {

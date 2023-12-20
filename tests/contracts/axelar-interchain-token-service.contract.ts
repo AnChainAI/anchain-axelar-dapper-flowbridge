@@ -14,6 +14,6 @@ export const AxelarInterchainTokenService = (
       gatewayAddress,
     )
     .replace('"FungibleToken"', constants.FLOW_FT_ADDRESS)
-    .replace('"../AxelarFungibleToken.cdc"', gatewayAddress)
+    .replace('"../AxelarFungibleTokenInterface.cdc"', gatewayAddress)
   }
 }

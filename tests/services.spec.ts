@@ -542,15 +542,15 @@ describe('Service Contracts', () => {
         admin.addr,
         constants,
       )
-      // await deployInterchainTokenService({
-      //   args: {
-      //     contractName: interchainTokenServiceContract.name,
-      //     contractCode: interchainTokenServiceContract.code,
-      //     publicKey: publicKey,
-      //     accountCreationFee: 0.001,
-      //   },
-      //   authz: admin.authz,
-      // })
+      await deployInterchainTokenService({
+        args: {
+          contractName: interchainTokenServiceContract.name,
+          contractCode: interchainTokenServiceContract.code,
+          publicKey: publicKey,
+          accountCreationFee: 0.001,
+        },
+        authz: admin.authz,
+      })
     })
   })
 })
