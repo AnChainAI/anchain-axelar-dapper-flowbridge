@@ -33,14 +33,12 @@ access(all) contract ExampleApplication {
         emit CommandApproved(commandId: commandId, sourceChain: sourceChain, sourceAddress: sourceAddress)
         return AxelarGateway.ExecutionStatus(
           isExecuted: true,
-          statusCode: 0,
-          errorMessage: ""
+          errorMessage: nil
         )
       }
 
       return AxelarGateway.ExecutionStatus(
         isExecuted: false,
-        statusCode: 1,
         errorMessage: "Could not insert gmp data"
       )
     }
