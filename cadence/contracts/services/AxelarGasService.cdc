@@ -1,5 +1,5 @@
-import FlowToken from "flow-token"
-import FungibleToken from "flow-ft"
+import FlowToken from "FlowToken"
+import FungibleToken from "FungibleToken"
 
 // Reverence Solidity Implementation: https://github.com/axelarnetwork/axelar-cgp-solidity/blob/main/contracts/gas-service/AxelarGasService.sol
 access(all) contract AxelarGasService {

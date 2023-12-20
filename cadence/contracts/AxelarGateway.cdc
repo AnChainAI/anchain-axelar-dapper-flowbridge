@@ -1,6 +1,6 @@
 import AxelarAuthWeighted from "./auth/AxelarAuthWeighted.cdc"
 import AddressUtils from "./standard/AddressUtils.cdc"
-import FungibleToken from "flow-ft"
+import FungibleToken from "FungibleToken"
 import Crypto
 
 // Main GateWay contract for audit

@@ -9,6 +9,6 @@ export const AxelarGasServiceContract = (tokenAddress: string, ftAddress: string
     code: readFileSync(
       findFilePath(join('services', 'AxelarGasService.cdc')),
       'utf8',
-    ).replace('"flow-token"', tokenAddress).replace('"flow-ft"', ftAddress),
+    ).replace('"FlowToken"', tokenAddress).replace('"FungibleToken"', ftAddress),
   }
 }

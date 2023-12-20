@@ -12,6 +12,6 @@ export const AxelarGatewayContract = (
     code: readFileSync(findFilePath('AxelarGateway.cdc'), 'utf8')
       .replace('"./auth/AxelarAuthWeighted.cdc"', adminAddress)
       .replace('"./standard/AddressUtils.cdc"', utilsAddress)
-      .replace('"flow-ft"', constants.FLOW_FT_ADDRESS),
+      .replace('"FungibleToken"', constants.FLOW_FT_ADDRESS),
   }
 }
