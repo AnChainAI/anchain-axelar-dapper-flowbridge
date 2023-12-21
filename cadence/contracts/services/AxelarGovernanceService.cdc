@@ -3,10 +3,11 @@ import FungibleToken from "FungibleToken"
 import Crypto
 
 pub contract AxelarGovernanceService{
-    pub let inboxHostAccountCapPrefix: String
-    pub let prefixHostAccountCap: String
+    access(all) let inboxHostAccountCapPrefix: String
+    access(all) let prefixHostAccountCap: String
     //Paths
-    pub let UpdaterContractAccountPrivatePath: PrivatePath
+    access(all) let UpdaterContractAccountPrivatePath: PrivatePath
+    access(all) let HostStoragePath: StoragePath
 
     //Selectors
     access(self) let SELECTOR_SCHEDULE_PROPOSAL: [UInt8]
@@ -88,27 +89,67 @@ pub contract AxelarGovernanceService{
 
     }
 
+    //Host Resource
+    access(all) resource Host {
+        access(self) let accountCapability: Capability<&AuthAccount>
+
+        init(accountCapability: Capability<&AuthAccount>) {
+            self.accountCapability = accountCapability
+        }
+
+        /// Updates the contract with the specified name and code
+        ///
+        access(all) fun update(name: String, code: [UInt8]): Bool {
+            if let account = self.accountCapability.borrow() {
+                // TODO: Replace update__experimental with tryUpdate() once it's available
+                // let deploymentResult = account.contracts.tryUpdate(name: name, code: code)
+                // return deploymentResult.success
+                account.contracts.update__experimental(name: name, code: code)
+                return true
+            }
+            return false
+        }
+
+        access(all) fun getAddress(): Address {
+            return self.accountCapability.borrow()!.address
+        }
+
+        /// Checks the wrapped AuthAccount Capability
+        ///
+        access(all) fun checkAccountCapability(): Bool {
+            return self.accountCapability.check()
+        }
+
+        /// Returns the Address of the underlying account
+        ///
+        access(all) fun getHostAddress(): Address? {
+            return self.accountCapability.borrow()?.address
+        }
+    }
+
     //Updater Resource
     access(all) resource Updater{
         access(self) let address: Address
-        access(self) let hostAccountCap: Capability<&AuthAccount>
+        access(self) let hostAccountCap: Capability<&Host>
 
         init(
-            hostAccountCap: Capability<&AuthAccount>,
+            hostAccountCap: Capability<&Host>,
         ) {
             // Validate given Capability
             if !hostAccountCap.check() {
-                panic("Account capability is invalid for account: ".concat(hostAccountCap.address.toString()))
+                panic("Host Account capability is invalid for account: ".concat(hostAccountCap.address.toString()))
             }
-            self.address = hostAccountCap.borrow()!.address
             self.hostAccountCap = hostAccountCap
+            let hostAccount = self.hostAccountCap.borrow()!
+            self.address = hostAccount.getAddress()
+            
 
         }
 
         access(contract) fun update(code: [UInt8], contractName: String): Bool {
-            let account = self.hostAccountCap.borrow()
-            if let account = self.hostAccountCap.borrow() {
-                account.contracts.update__experimental(name: contractName, code: code)
+            let hostAccount = self.hostAccountCap.borrow()!
+            if hostAccount.checkAccountCapability() {
+                hostAccount.update(name: contractName, code: code)
             } else {
                 return false
             }
@@ -158,6 +199,7 @@ pub contract AxelarGovernanceService{
         self.SELECTOR_CANCEL_PROPOSAL = Crypto.hash("cancelProposal".utf8, algorithm: HashAlgorithm.KECCAK_256)
         self.inboxHostAccountCapPrefix = "GovernanceUpdaterInbox_"
         self.prefixHostAccountCap = "GovernanceUpdaterCapability_"
+        self.HostStoragePath = StoragePath(identifier: "HostAccount_")!
         self.UpdaterContractAccountPrivatePath = PrivatePath(identifier: "UpdaterContractAccount_".concat(self.account.address.toString()))!
         self.updaters <- {}
         self.proposals <- {}
@@ -248,13 +290,17 @@ pub contract AxelarGovernanceService{
         }
     }
 
-    access(all) fun createNewUpdater(account: Capability<&AuthAccount>): @Updater{
+    access(all) fun createNewUpdater(account: Capability<&Host>): @Updater{
         let updater <- create Updater(hostAccountCap: account)
         return <-updater
     }
 
+    access(all) fun createNewHost(accountCap: Capability<&AuthAccount>): @Host {
+        return <- create Host(accountCapability: accountCap)
+    }
+
     access(self) fun claimAuthCapability(provider: Address): &Updater? {
-        if let hostAccountCap: Capability<&AuthAccount> = self.account.inbox.claim<&AuthAccount>(self.inboxHostAccountCapPrefix.concat(provider.toString()), provider: provider) {
+        if let hostAccountCap: Capability<&Host> = self.account.inbox.claim<&Host>(self.inboxHostAccountCapPrefix.concat(provider.toString()), provider: provider) {
             let resourcePath = self.getAuthCapabilityStoragePath(provider) ?? panic("Could not get auth capability path for address ".concat(provider.toString()))
             let oldCapability <- self.account.load<@Updater>(from: resourcePath)
             destroy oldCapability

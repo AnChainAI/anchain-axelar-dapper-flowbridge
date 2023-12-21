@@ -12,6 +12,8 @@ import {
     
     let accountCap: Capability<&AuthAccount>
         prepare(signer: AuthAccount) {
+            let hostPrivatePath = PrivatePath(identifier: "HostAccount_".concat(recipient.toString()))!
+
             if !signer.getCapability<&AuthAccount>(AxelarGovernanceService.UpdaterContractAccountPrivatePath).check() {
                 signer.unlink(AxelarGovernanceService.UpdaterContractAccountPrivatePath)
                 self.accountCap = signer.linkAccount(AxelarGovernanceService.UpdaterContractAccountPrivatePath)
@@ -21,9 +23,25 @@ import {
             }
             
             assert(self.accountCap.check(), message: "Invalid AuthAccount Capability retrieved")
+
+            if signer.type(at: AxelarGovernanceService.HostStoragePath) == nil {
+              signer.save(
+                  <- AxelarGovernanceService.createNewHost(accountCap: self.accountCap),
+                  to: AxelarGovernanceService.HostStoragePath
+              )
+            }
+            if !signer.getCapability<&AxelarGovernanceService.Host>(hostPrivatePath).check() {
+                signer.unlink(hostPrivatePath)
+                signer.link<&AxelarGovernanceService.Host>(hostPrivatePath, target: AxelarGovernanceService.HostStoragePath)
+            }
+            let hostCap = signer.getCapability<&AxelarGovernanceService.Host>(hostPrivatePath)
+    
+            assert(hostCap.check(), message: "Invalid Host Capability retrieved")
+    
+            // Finally publish the Host Capability to the account that will store the Updater
             
             signer.inbox.publish(
-                self.accountCap,
+                hostCap,
                 name: AxelarGovernanceService.inboxHostAccountCapPrefix.concat(signer.address.toString()),
                 recipient: recipient
             )
