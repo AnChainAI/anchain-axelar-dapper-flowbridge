@@ -26,21 +26,7 @@ access(all) contract InterchainTokenService {
 
     access(all) let INIT_INTERCHAIN_TRANSFER: [UInt8]
 
-    access(all) resource interface NativeTokensInterface{
-        access(all) contractAddress: Address
-        access(all) contractName: String
-        access(account) vaultRef: StoragePath
-    }
-
-    access(all) resource interface ManagedTokensInterface{
-        access(all) contractAddress: Address
-        access(all) contractName: String
-        access(account) adminCapability: StoragePath
-        access(account) minterCapability: StoragePath
-        access(account) burnerCapability: StoragePath
-    }
-
-    access(all) resource NativeTokens: NativeTokensInterface{
+    access(all) resource NativeTokens{
         access(all) let contractAddress: Address
         access(all) let contractName: String
         access(all) let vaultRef: StoragePath
@@ -64,7 +50,7 @@ access(all) contract InterchainTokenService {
         )
     }
 
-    access(all) resource ManagedTokens: ManagedTokensInterface{
+    access(all) resource ManagedTokens{
         access(all) let contractAddress: Address
         access(all) let contractName: String
         access(account) let adminCapability: StoragePath
