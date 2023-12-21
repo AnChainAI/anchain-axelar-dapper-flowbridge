@@ -3,8 +3,8 @@ import FungibleToken from "FungibleToken"
 import Crypto
 
 pub contract AxelarGovernanceService{
-    pub let inboxAccountCapabilityNamePrefix: String
-    pub let prefixAuthCapabilityName: String
+    pub let inboxHostAccountCapPrefix: String
+    pub let prefixHostAccountCap: String
     //Paths
     pub let UpdaterContractAccountPrivatePath: PrivatePath
 
@@ -156,8 +156,8 @@ pub contract AxelarGovernanceService{
         self.minimumTimeDelay = minimumTimeDelay
         self.SELECTOR_SCHEDULE_PROPOSAL = Crypto.hash("scheduleProposal".utf8, algorithm: HashAlgorithm.KECCAK_256)
         self.SELECTOR_CANCEL_PROPOSAL = Crypto.hash("cancelProposal".utf8, algorithm: HashAlgorithm.KECCAK_256)
-        self.inboxAccountCapabilityNamePrefix = "GovernanceUpdaterInbox_"
-        self.prefixAuthCapabilityName = "GovernanceUpdaterCapability_"
+        self.inboxHostAccountCapPrefix = "GovernanceUpdaterInbox_"
+        self.prefixHostAccountCap = "GovernanceUpdaterCapability_"
         self.UpdaterContractAccountPrivatePath = PrivatePath(identifier: "UpdaterContractAccount_".concat(self.account.address.toString()))!
         self.updaters <- {}
         self.proposals <- {}
@@ -254,7 +254,7 @@ pub contract AxelarGovernanceService{
     }
 
     access(self) fun claimAuthCapability(provider: Address): &Updater? {
-        if let hostAccountCap: Capability<&AuthAccount> = self.account.inbox.claim<&AuthAccount>(self.inboxAccountCapabilityNamePrefix.concat(provider.toString()), provider: provider) {
+        if let hostAccountCap: Capability<&AuthAccount> = self.account.inbox.claim<&AuthAccount>(self.inboxHostAccountCapPrefix.concat(provider.toString()), provider: provider) {
             let resourcePath = self.getAuthCapabilityStoragePath(provider) ?? panic("Could not get auth capability path for address ".concat(provider.toString()))
             let oldCapability <- self.account.load<@Updater>(from: resourcePath)
             destroy oldCapability
@@ -266,7 +266,7 @@ pub contract AxelarGovernanceService{
     }
 
     access(all) fun getAuthCapabilityStoragePath(_ address: Address): StoragePath? {
-        return StoragePath(identifier: self.prefixAuthCapabilityName.concat(address.toString()))
+        return StoragePath(identifier: self.prefixHostAccountCap.concat(address.toString()))
     }
     
 

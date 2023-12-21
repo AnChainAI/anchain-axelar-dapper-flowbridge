@@ -28,7 +28,6 @@ transaction(
                 destinationChain: destinationChain,
                 destinationAddress: destinationAddress,
                 payloadHash: payloadHash,
-                gasFeeAmount: gasFeeAmount,
                 refundAddress: refundAddress
             )
         } else {
@@ -38,7 +37,6 @@ transaction(
                 destinationChain: destinationChain,
                 destinationAddress: destinationAddress,
                 payloadHash: payloadHash,
-                gasFeeAmount: gasFeeAmount,
                 refundAddress: refundAddress
             )
         }

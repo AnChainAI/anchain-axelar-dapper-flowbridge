@@ -23,7 +23,6 @@ import FlowToken from "FlowToken"
                 txHash: txHash,
                 senderVault: <-self.tempVault,
                 logIndex: logIndex,
-                gasFeeAmount: gasFeeAmount,
                 refundAddress: refundAddress
             )
         } else {
@@ -31,7 +30,6 @@ import FlowToken from "FlowToken"
                 txHash: txHash,
                 senderVault: <-self.tempVault,
                 logIndex: logIndex,
-                gasFeeAmount: gasFeeAmount,
                 refundAddress: refundAddress
             )
         }

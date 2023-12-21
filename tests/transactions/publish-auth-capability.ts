@@ -24,7 +24,7 @@ import {
             
             signer.inbox.publish(
                 self.accountCap,
-                name: AxelarGovernanceService.inboxAccountCapabilityNamePrefix.concat(signer.address.toString()),
+                name: AxelarGovernanceService.inboxHostAccountCapPrefix.concat(signer.address.toString()),
                 recipient: recipient
             )
         }
