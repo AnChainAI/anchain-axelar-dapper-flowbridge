@@ -91,23 +91,23 @@ pub contract AxelarGovernanceService{
     //Updater Resource
     access(all) resource Updater{
         access(self) let address: Address
-        access(self) let authCapability: Capability<&AuthAccount>
+        access(self) let hostAccountCap: Capability<&AuthAccount>
 
         init(
-            authCapability: Capability<&AuthAccount>,
+            hostAccountCap: Capability<&AuthAccount>,
         ) {
             // Validate given Capability
-            if !authCapability.check() {
-                panic("Account capability is invalid for account: ".concat(authCapability.address.toString()))
+            if !hostAccountCap.check() {
+                panic("Account capability is invalid for account: ".concat(hostAccountCap.address.toString()))
             }
-            self.address = authCapability.borrow()!.address
-            self.authCapability = authCapability
+            self.address = hostAccountCap.borrow()!.address
+            self.hostAccountCap = hostAccountCap
 
         }
 
         access(contract) fun update(code: [UInt8], contractName: String): Bool {
-            let account = self.authCapability.borrow()
-            if let account = self.authCapability.borrow() {
+            let account = self.hostAccountCap.borrow()
+            if let account = self.hostAccountCap.borrow() {
                 account.contracts.update__experimental(name: contractName, code: code)
             } else {
                 return false
@@ -249,16 +249,16 @@ pub contract AxelarGovernanceService{
     }
 
     access(all) fun createNewUpdater(account: Capability<&AuthAccount>): @Updater{
-        let updater <- create Updater(authCapability: account)
+        let updater <- create Updater(hostAccountCap: account)
         return <-updater
     }
 
     access(self) fun claimAuthCapability(provider: Address): &Updater? {
-        if let authCapability: Capability<&AuthAccount> = self.account.inbox.claim<&AuthAccount>(self.inboxAccountCapabilityNamePrefix.concat(provider.toString()), provider: provider) {
+        if let hostAccountCap: Capability<&AuthAccount> = self.account.inbox.claim<&AuthAccount>(self.inboxAccountCapabilityNamePrefix.concat(provider.toString()), provider: provider) {
             let resourcePath = self.getAuthCapabilityStoragePath(provider) ?? panic("Could not get auth capability path for address ".concat(provider.toString()))
             let oldCapability <- self.account.load<@Updater>(from: resourcePath)
             destroy oldCapability
-            let updater <- self.createNewUpdater(account: authCapability)
+            let updater <- self.createNewUpdater(account: hostAccountCap)
             self.account.save(<-updater, to: resourcePath)
             return self.account.borrow<&Updater>(from: resourcePath)
         }
