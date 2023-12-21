@@ -18,13 +18,15 @@ access(all) contract InterchainTokenService {
     access(all)  var accountCreationFee: UFix64
     access(all)  var LATEST_METADATA_VERSION: UInt32
 
-    // access(self) let approvedCommands: @{String: ApprovedCommands} 
     access(self) let tokens: {Address: TokenManagerType}
 
     access(self) let nativeTokens: @{Address: NativeTokens}
     access(self) let managedTokens: @{Address: ManagedTokens}
 
-    access(all) let INIT_INTERCHAIN_TRANSFER: [UInt8]
+    //Command Selectors
+    access(all) let INTERCHAIN_TRANSFER: [UInt8]
+    access(all) let DEPLOY_INTERCHAIN_TOKEN: [UInt8]
+
 
     access(all) resource NativeTokens{
         access(all) let contractAddress: Address
@@ -119,7 +121,8 @@ access(all) contract InterchainTokenService {
         self.nativeTokens <- {}
         self.managedTokens <- {}
         self.LATEST_METADATA_VERSION = 0
-        self.INIT_INTERCHAIN_TRANSFER = [0x00]
+        self.INTERCHAIN_TRANSFER = Crypto.hash("INTERCHAIN_TRANSFER".utf8, algorithm: HashAlgorithm.KECCAK_256)
+        self.DEPLOY_INTERCHAIN_TOKEN = Crypto.hash("DEPLOY_INTERCHAIN_TOKEN".utf8, algorithm: HashAlgorithm.KECCAK_256)
         self.prefixAuthCapabilityName = "TokenAuthCapability_"
         self.prefixNativeTokenName = "NativeToken_"
         self.prefixManagedTokenName = "ManagedToken_"
