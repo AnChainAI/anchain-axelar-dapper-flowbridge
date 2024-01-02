@@ -210,14 +210,11 @@ access(all) contract InterchainTokenService {
             let nativeToken = (&self.nativeTokens[tokenAddress] as &NativeTokens?) ?? panic("could not borrow native token ref")
             
             //borrow the coresponding native token vault
-            let vault <- self.account.load<@FungibleToken.Vault>(from: nativeToken.vaultRef)!
+            let nativeVault = self.account.borrow<&FungibleToken.Vault>(from: nativeToken.vaultRef)
+                ?? panic("Could not borrow a reference to the native vault")
 
             //withdraw from vault and deposit to reciever
-            let tempVault <- vault.withdraw(amount: amount)
-            reciever.deposit(from: <-tempVault)
-
-            //save vault back to storage
-            self.account.save(<- vault, to: nativeToken.vaultRef)
+            reciever.deposit(from: <-nativeVault.withdraw(amount: amount))
         } else {
             let managedToken = (&self.managedTokens[tokenAddress] as &ManagedTokens?) ?? panic("could not borrow managed token ref")
             let minter = self.account.borrow<&AxelarFungibleTokenInterface.Minter>(from: managedToken.minterCapability)
