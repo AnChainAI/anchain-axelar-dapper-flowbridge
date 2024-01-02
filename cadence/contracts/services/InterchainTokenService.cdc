@@ -85,7 +85,7 @@ access(all) contract InterchainTokenService {
         contractName: String,
         contractAddress: Address,
         tokenName: String,
-        tokenSymbol: String,
+        tokenSymbol: String
     )
 
     access(all) event InterchainTransfer(
