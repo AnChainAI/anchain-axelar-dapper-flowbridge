@@ -220,10 +220,9 @@ access(all) contract InterchainTokenService {
             self.account.save(<- vault, to: nativeToken.vaultRef)
         } else {
             let managedToken = (&self.managedTokens[tokenAddress] as &ManagedTokens?) ?? panic("could not borrow managed token ref")
-            let mintCap <- self.account.load<@AxelarFungibleTokenInterface.Minter>(from: managedToken.minterCapability)!
-            let mintVault <- mintCap.mintTokens(amount: amount)!
-            reciever.deposit(from: <-mintVault)
-            self.account.save(<- mintCap, to: managedToken.minterCapability)
+            let minter = self.account.borrow<&AxelarFungibleTokenInterface.Minter>(from: managedToken.minterCapability)
+                ?? panic("Could not borrow managed token minter")
+            reciever.deposit(from: <-mintCap.mintTokens(amount: amount))
         }
    }
 
