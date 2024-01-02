@@ -111,7 +111,7 @@ access(all) contract InterchainTokenService {
         tokenId: String,
         destinationChain: String,
         //TokenManagerType??
-        params: String,
+        params: String
     )
 
     init(publicKey: String, accountCreationFee: UFix64){
