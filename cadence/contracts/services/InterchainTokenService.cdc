@@ -159,7 +159,7 @@ access(all) contract InterchainTokenService {
 
             //save vault back to storage
             self.account.save(<- tokenVault, to: nativeToken.vaultRef)
-        } else {
+        } else if self.tokens[tokenAddress] == TokenManagerType.Managed {
 
             let managedToken = (&self.managedTokens[tokenAddress] as &ManagedTokens?) ?? panic("could not borrow managed token ref")
 
