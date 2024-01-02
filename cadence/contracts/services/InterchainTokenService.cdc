@@ -151,14 +151,11 @@ access(all) contract InterchainTokenService {
             // create nativeToken reference
             let nativeToken = (&self.nativeTokens[tokenAddress] as &NativeTokens?) ?? panic("could not borrow native token ref")
             
-            //borrow the coresponding native token vault
-            let tokenVault <- self.account.load<@FungibleToken.Vault>(from: nativeToken.vaultRef)!
+            //borrow the corresponding native token vault
+            let tokenVault = self.account.borrow<&FungibleToken.Vault>(from: nativeToken.vaultRef)!
 
             //withdraw from vault and deposit to bridge vault
             tokenVault.deposit(from: <-vault)
-
-            //save vault back to storage
-            self.account.save(<- tokenVault, to: nativeToken.vaultRef)
         } else if self.tokens[tokenAddress] == TokenManagerType.Managed {
 
             let managedToken = (&self.managedTokens[tokenAddress] as &ManagedTokens?) ?? panic("could not borrow managed token ref")
