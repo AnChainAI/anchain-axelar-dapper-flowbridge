@@ -240,7 +240,11 @@ pub contract AxelarFungibleToken: FungibleToken, ViewResolver, AxelarFungibleTok
         self.name = tokenName
         self.symbol = symbol
         self.totalSupply = 1000.0
-        self.VaultStoragePath = /storage/exampleTokenVault
+        self.VaultStoragePath = StoragePath(
+            identifier: "AxelarFungibleToken"
+            .concat(tokenName).concat("_")
+            .concat(self.account.address.toString())
+        )!
         self.VaultPublicPath = /public/exampleTokenMetadata
         self.ReceiverPublicPath = /public/exampleTokenReceiver
         self.AdminStoragePath = /storage/exampleTokenAdmin
