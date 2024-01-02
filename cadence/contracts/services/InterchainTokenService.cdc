@@ -202,7 +202,7 @@ access(all) contract InterchainTokenService {
         if (amount > 0.0){
             panic("Amount must be greater than zero")
         }
-        if(!self.tokens.keys.contains(tokenAddress)){
+        if self.tokens[tokenAddress] == nil {
             panic("Token not onboarded")
         }
         if (self.tokens[tokenAddress] == TokenManagerType.Native){
