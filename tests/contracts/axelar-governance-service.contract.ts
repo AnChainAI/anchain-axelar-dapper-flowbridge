@@ -1,17 +1,18 @@
 import { findFilePath } from '../../utils/testing'
 import { ContractDetails, FlowConstants } from '../../utils/flow'
 import { readFileSync } from 'fs'
+import { join } from 'path'
 
-export const ExampleApplicationContract = (
+export const AxelarGovernanceServiceContract = (
   gatewayAddress: string,
   constants: FlowConstants,
 ): ContractDetails => {
   return {
-    name: 'ExampleApplication',
-    code: readFileSync(findFilePath('ExampleApplication.cdc'), 'utf8').replace(
+    name: 'AxelarGovernanceService',
+    code: readFileSync(findFilePath(join('services', 'AxelarGovernanceService.cdc')), 'utf8').replace(
       '"../AxelarGateway.cdc"',
       gatewayAddress,
     )
-    .replace('"FungibleToken"', constants.FLOW_FT_ADDRESS),
+    .replace('"FungibleToken"', constants.FLOW_FT_ADDRESS)
   }
 }

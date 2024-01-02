@@ -18,4 +18,6 @@ export interface FlowConstants {
    * The address of the account that has the FungibleToken smart contract.
    */
   readonly FLOW_FT_ADDRESS: string
+
+  readonly FLOW_NFT_ADDRESS: string
 }

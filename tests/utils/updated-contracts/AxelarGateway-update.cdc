@@ -1,9 +1,8 @@
 import AxelarAuthWeighted from "./auth/AxelarAuthWeighted.cdc"
 import AddressUtils from "./standard/AddressUtils.cdc"
-import FungibleToken from "FungibleToken"
 import Crypto
 
-// Main GateWay contract for sending and receiving interchain messages
+// Main GateWay contract for audit
 access(all) contract AxelarGateway {
   access(self) let SELECTOR_APPROVE_CONTRACT_CALL: [UInt8]
   access(self) let SELECTOR_TRANSFER_OPERATORSHIP: [UInt8]
@@ -142,7 +141,7 @@ access(all) contract AxelarGateway {
   }
 
   access(all) resource interface Executable {
-    access(all) fun executeApp(commandResource: &AxelarGateway.CGPCommand, sourceChain: String, sourceAddress: String, payload: [UInt8], receiver:  &{FungibleToken.Receiver}?): AxelarGateway.ExecutionStatus
+    access(all) fun executeApp(commandResource: &AxelarGateway.CGPCommand, sourceChain: String, sourceAddress: String, payload: [UInt8]): ExecutionStatus
   }
 
   access(all) resource interface SenderIdentity {}
@@ -265,7 +264,7 @@ access(all) contract AxelarGateway {
     }
   }
 
-  access(all) fun executeApp(commandId: String, sourceChain: String, sourceAddress: String, contractAddress: String, payload: [UInt8], receiver:  &{FungibleToken.Receiver}?): Bool {
+  access(all) fun executeApp(commandId: String, sourceChain: String, sourceAddress: String, contractAddress: String, payload: [UInt8]): Bool {
     // Check to see if command id has already been executed
     if (self.isCommandExecuted(commandId: commandId)) {
       panic("Command id: ".concat(commandId).concat(" is already executed"))
@@ -293,7 +292,7 @@ access(all) contract AxelarGateway {
     let cgpCommand = (&self.approvedCommands[commandId] as &CGPCommand?) ?? panic("Could not borrow reference to CGP Command")
 
     // Call the execute method from the dApp
-    let executionStatus = appCapability!.borrow()!.executeApp(commandResource: cgpCommand, sourceChain: sourceChain, sourceAddress: sourceAddress, payload: payload, receiver: receiver)
+    let executionStatus = appCapability!.borrow()!.executeApp(commandResource: cgpCommand, sourceChain: sourceChain, sourceAddress: sourceAddress, payload: payload)
 
     // Record command execution
     self.executedCommands.insert(
@@ -386,5 +385,8 @@ access(all) contract AxelarGateway {
     }
 
     panic("Invalid Address")
+  }
+  pub fun updated(): Bool{
+    return true
   }
 }
