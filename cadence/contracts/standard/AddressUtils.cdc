@@ -1,7 +1,7 @@
 // Used from https://github.com/green-goo-dao/flow-utils/tree/main/cadence/contracts
 import StringUtils from "./StringUtils.cdc"
 
-pub contract AddressUtils {
+access(all) contract AddressUtils {
 
     priv fun withoutPrefix(_ input: String): String{
         var address=input
@@ -44,14 +44,14 @@ pub contract AddressUtils {
 
     }
 
-    pub fun parseAddress(_ input: AnyStruct): Address?{
+    access(all) fun parseAddress(_ input: AnyStruct): Address?{
         if let parsed = self.parseUInt64(input){
             return Address(parsed)
         }
         return nil
     }
 
-    pub fun isValidAddress(_ input: AnyStruct, forNetwork: String) : Bool{
+    access(all) fun isValidAddress(_ input: AnyStruct, forNetwork: String) : Bool{
         
         if let address = self.parseUInt64(input) {
             
@@ -93,7 +93,7 @@ pub contract AddressUtils {
         return false
     }
 
-    pub fun getNetworkFromAddress(_ input: AnyStruct): String? {
+    access(all) fun getNetworkFromAddress(_ input: AnyStruct): String? {
         for network in ["MAINNET", "TESTNET", "EMULATOR"]{
             if self.isValidAddress(input, forNetwork: network){
                 return network
@@ -102,7 +102,7 @@ pub contract AddressUtils {
         return nil
     }
 
-    pub fun currentNetwork(): String{
+    access(all) fun currentNetwork(): String{
         return self.getNetworkFromAddress(self.account.address)!
     }
 

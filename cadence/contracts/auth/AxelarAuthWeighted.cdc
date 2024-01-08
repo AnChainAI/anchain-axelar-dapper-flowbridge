@@ -1,6 +1,5 @@
 import Crypto
 
-// Main Auth Weighted contract for audit
 access(all) contract AxelarAuthWeighted {
   access(all) var currentEpoch: UInt256
   access(all) let hashForEpoch: {UInt256: String}
@@ -16,24 +15,28 @@ access(all) contract AxelarAuthWeighted {
 
   access(all) struct ValidationStatus {
     access(all) let isValid: Bool
-    access(all) let statusCode: UInt64 /* The pass/fail status. 0 indicates it passed, 1 indicates it failed */
-    access(all) let errorMessage: String /*	An error message if it exists. Default is an empty string '' */
+    access(all) let errorMessage: String? /*	An error message with 20 characters in length if it exists */
 
-    init(isValid: Bool, statusCode: UInt64, errorMessage: String) {
+    init(isValid: Bool, errorMessage: String?) {
+      pre {
+        errorMessage == nil || errorMessage!.length <= 20 : "Error message length must be less than or equal to 20"
+      }
+
       self.isValid = isValid
-      self.statusCode = statusCode
       self.errorMessage = errorMessage
     }
   }
 
-    access(all) struct TransferStatus {
+  access(all) struct TransferStatus {
     access(all) let isTransferred: Bool
-    access(all) let statusCode: UInt64 /* The pass/fail status. 0 indicates it passed, 1 indicates it failed */
-    access(all) let errorMessage: String /*	An error message if it exists. Default is an empty string '' */
+    access(all) let errorMessage: String? /*	An error message with 20 characters in length if it exists */
 
-    init(isTransferred: Bool, statusCode: UInt64, errorMessage: String) {
+    init(isTransferred: Bool, errorMessage: String?) {
+      pre {
+        errorMessage == nil || errorMessage!.length <= 20 : "Error message length must be less than or equal to 20"
+      }
+
       self.isTransferred = isTransferred
-      self.statusCode = statusCode
       self.errorMessage = errorMessage
     }
   }
@@ -60,15 +63,14 @@ access(all) contract AxelarAuthWeighted {
 
     // panic and revert transaction when signing operators are invalid
     if operatorsEpoch == nil || epoch - operatorsEpoch! >= self.OLD_KEY_RETENTION {
-      panic("Invalid operators")
+      panic("Invalid Operators")
     }
 
     let isValidSig = self._validateSignatures(message: message, operators: operators, weights: weights, threshold: threshold, signatures: signatures)
 
     return ValidationStatus(
       isValid: operatorsEpoch! == epoch,
-      statusCode: 0,
-      errorMessage: ""
+      errorMessage: nil
     )
   }
 
@@ -86,7 +88,6 @@ access(all) contract AxelarAuthWeighted {
       if !validatedProof.isValid {
         return TransferStatus(
           isTransferred: false,
-          statusCode: validatedProof.statusCode,
           errorMessage: validatedProof.errorMessage
         )
       }
@@ -104,21 +105,18 @@ access(all) contract AxelarAuthWeighted {
     if (operatorsLength == 0) {
       return TransferStatus(
         isTransferred: false,
-        statusCode: 1,
         errorMessage: "Invalid Operators"
       )
     }
     if (!self._isSortedAscAndContainsNoDuplicate(operators: newOperators)) {
       return TransferStatus(
         isTransferred: false,
-        statusCode: 1,
-        errorMessage: "Operators are not sorted"
+        errorMessage: "Unsorted Operators"
       )
     }
     if (weightsLength != operatorsLength) {
       return TransferStatus(
         isTransferred: false,
-        statusCode: 1,
         errorMessage: "Invalid Weights"
       )
     }
@@ -131,7 +129,6 @@ access(all) contract AxelarAuthWeighted {
     if (newThreshold == 0 || totalWeight < newThreshold) {
       return TransferStatus(
         isTransferred: false,
-        statusCode: 1,
         errorMessage: "Invalid Threshold"
       )
     }
@@ -140,7 +137,6 @@ access(all) contract AxelarAuthWeighted {
     if (self.epochForHash[newOperatorsHash] != nil) {
       return TransferStatus(
         isTransferred: false,
-        statusCode: 1,
         errorMessage: "Duplicate Operators"
       )
     }
@@ -153,8 +149,7 @@ access(all) contract AxelarAuthWeighted {
     emit OperatorshipTransferred(newOperators: newOperators, newWeights: newWeights, newThreshold: newThreshold)
     return TransferStatus(
       isTransferred: true,
-      statusCode: 0,
-      errorMessage: ""
+      errorMessage: nil
     )
   }
 
@@ -176,7 +171,6 @@ access(all) contract AxelarAuthWeighted {
       if operatorIndex == operatorsLength {
         return ValidationStatus(
           isValid: false,
-          statusCode: 1,
           errorMessage: "Malformed Signers"
         )
       }
@@ -190,8 +184,7 @@ access(all) contract AxelarAuthWeighted {
       if weight >= threshold {
         return ValidationStatus(
           isValid: true,
-          statusCode: 0,
-          errorMessage: ""
+          errorMessage: nil
         )
       }
 
@@ -202,8 +195,7 @@ access(all) contract AxelarAuthWeighted {
     // fail if weight is below threshold after validating all signatures
     return ValidationStatus(
       isValid: false,
-      statusCode: 1,
-      errorMessage: "Low Signatures Weight"
+      errorMessage: "Low Sigs Weight"
     )
   }
 

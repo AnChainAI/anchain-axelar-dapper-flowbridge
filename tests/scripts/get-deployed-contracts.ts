@@ -1,7 +1,7 @@
 import { ScriptFunctionParams, sendScript } from '../../utils/flow'
 
 const CODE = `
-pub fun main(address: Address): [String] {
+access(all) fun main(address: Address): [String] {
   return getAccount(address).contracts.names
 }
 `
