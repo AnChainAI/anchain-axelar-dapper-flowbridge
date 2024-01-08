@@ -3,7 +3,7 @@ import { ScriptFunctionParams, sendScript } from '../../utils/flow'
 const CODE = (address: string) => `
 import ExampleApplication from ${address}
 
-pub fun main(commandId: String): ExampleApplication.GMPData {
+access(all) fun main(commandId: String): ExampleApplication.GMPData {
   let data = ExampleApplication.getApprovedCommand(commandId: commandId)
   if (data == nil) {
     return ExampleApplication.GMPData(sourceChain: "", sourceAddress: "", payload: [])

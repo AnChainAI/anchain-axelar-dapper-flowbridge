@@ -2,7 +2,7 @@ import * as fcl from '@onflow/fcl'
 
 // https://docs.onflow.org/cadence/language/accounts/
 const CODE = `
-pub fun main(address: Address): Int {
+access(all) fun main(address: Address): Int {
   var i = 0
   let account = getAccount(address)
   while account.keys.get(keyIndex: i) != nil {
@@ -17,7 +17,7 @@ export async function countKeys(address: string): Promise<string> {
     cadence: CODE,
     args: (
       arg: (a: unknown, b: unknown) => unknown,
-      t: { Address: () => unknown }
+      t: { Address: () => unknown },
     ) => [arg(address, t.Address)],
   })
 }
