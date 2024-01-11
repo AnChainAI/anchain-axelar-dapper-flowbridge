@@ -38,7 +38,20 @@ pub contract interface AxelarFungibleTokenInterface{
     pub let name: String
     pub let symbol: String
 
-    pub resource Administrator {
+    pub resource interface AdministratorInterface {
+        pub fun createNewMinter(): @Minter
+        pub fun createNewBurner(): @Burner
+    }
+
+    pub resource interface MinterInterface {
+        pub fun mintTokens(amount: UFix64): @FungibleToken.Vault?
+    }
+
+    pub resource interface BurnerInterface {
+        pub fun burnTokens(from: @FungibleToken.Vault)
+    }
+
+    pub resource Administrator: AdministratorInterface {
 
         /// Function that creates and returns a new minter resource
         ///
@@ -61,9 +74,6 @@ pub contract interface AxelarFungibleTokenInterface{
     pub resource Minter {
 
         pub fun mintTokens(amount: UFix64): @FungibleToken.Vault?
-
-        init() {
-        }
     }
 
     /// Resource object that token admin accounts can hold to burn tokens.

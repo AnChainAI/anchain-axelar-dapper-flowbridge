@@ -13,6 +13,7 @@ export const TemplateFungibleToken = (
       .replace('"FungibleToken"', constants.FLOW_FT_ADDRESS)
       .replace('"MetadataViews"', address)
       .replace('"FungibleTokenMetadataViews"', address)
-      .replace('"AxelarFungibleTokenInterface"', address),
+      .replace('"AxelarFungibleTokenInterface"', address)
+      .replace('"ViewResolver"', address),
     }
   }

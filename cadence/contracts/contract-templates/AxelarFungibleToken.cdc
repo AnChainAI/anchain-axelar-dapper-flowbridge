@@ -173,7 +173,7 @@ pub contract AxelarFungibleToken: FungibleToken, ViewResolver, AxelarFungibleTok
         return <-create Vault(balance: 0.0)
     }
 
-    pub resource Administrator {
+    pub resource Administrator: AxelarFungibleTokenInterface.AdministratorInterface {
 
         /// Function that creates and returns a new minter resource
         ///
@@ -202,7 +202,7 @@ pub contract AxelarFungibleToken: FungibleToken, ViewResolver, AxelarFungibleTok
 
     /// Resource object that token admin accounts can hold to mint new tokens.
     ///
-    pub resource Minter {
+    pub resource Minter: AxelarFungibleTokenInterface.MinterInterface {
 
         pub fun mintTokens(amount: UFix64): @AxelarFungibleToken.Vault {
             pre {
@@ -219,7 +219,7 @@ pub contract AxelarFungibleToken: FungibleToken, ViewResolver, AxelarFungibleTok
 
     /// Resource object that token admin accounts can hold to burn tokens.
     ///
-    pub resource Burner {
+    pub resource Burner: AxelarFungibleTokenInterface.BurnerInterface {
 
         /// Function that destroys a Vault instance, effectively burning the tokens.
         ///
@@ -242,7 +242,7 @@ pub contract AxelarFungibleToken: FungibleToken, ViewResolver, AxelarFungibleTok
         self.totalSupply = 1000.0
         self.VaultStoragePath = StoragePath(
             identifier: "AxelarFungibleToken"
-            .concat(tokenName).concat("_")
+            .concat(symbol).concat("_")
             .concat(self.account.address.toString())
         )!
         self.VaultPublicPath = /public/exampleTokenMetadata

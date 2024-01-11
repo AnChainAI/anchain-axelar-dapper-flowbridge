@@ -38,6 +38,7 @@ import { AxelarInterchainTokenService } from './contracts/axelar-interchain-toke
 import { account } from '@onflow/fcl'
 import { deployInterchainTokenService } from './transactions/deploy-interchain-token-service-contract'
 import { TemplateFungibleTokenInterface } from './contracts/template-fungible-token-interface.contract'
+import { TemplateViewResolver } from './contracts/template-view-resolver.contract'
 /**
  * To setup the testing, make sure you've run
  * the following command to start the flow emulator on a separate terminal:
@@ -500,16 +501,23 @@ describe('Service Contracts', () => {
         constants
       )
 
+      const templateViewResolver = TemplateViewResolver(
+        constants
+      )
+
       const templateFungibleTokenInterface = TemplateFungibleTokenInterface(
         constants,
         admin.addr
       )
+
+
       await deployContracts({
         args: {
-          contracts: [templateMetadataViews],
+          contracts: [templateMetadataViews, templateViewResolver],
         },
         authz: admin.authz,
       })
+
 
       await deployContracts({
         args: {
@@ -518,13 +526,13 @@ describe('Service Contracts', () => {
         authz: admin.authz,
       })
 
-      await deployTokenTemplate({
+      console.log(await deployTokenTemplate({
         args: {
           contractName: templateFungibleTokenInterface.name,
           contractCode: templateFungibleTokenInterface.code,
         },
         authz: admin.authz,
-      })
+      }))
 
       await deployTokenTemplate({
         args: {

@@ -55,9 +55,9 @@ access(all) contract InterchainTokenService {
     access(all) resource ManagedTokens{
         access(all) let contractAddress: Address
         access(all) let contractName: String
-        access(account) let adminCapability: StoragePath
-        access(account) let minterCapability: StoragePath
-        access(account) let burnerCapability: StoragePath
+        access(account) let adminCapability: Capability<&{AxelarFungibleTokenInterface.AdministratorInterface}>
+        access(account) let minterCapability: Capability<&{AxelarFungibleTokenInterface.MinterInterface}>
+        access(account) let burnerCapability: Capability<&{AxelarFungibleTokenInterface.BurnerInterface}>
 
         init(
             contractName: String,
@@ -67,16 +67,19 @@ access(all) contract InterchainTokenService {
             self.contractName = contractName
 
             let contract = authAccount.contracts.borrow<&AxelarFungibleTokenInterface>(name: contractName)
-            let adminCap <- contract!.getAdminCapability()
-            let minterCap <- adminCap.createNewMinter()
-            let burnerCap <- adminCap.createNewBurner()
+            self.adminCapability <- contract!.getAdminCapability()
+            self.minterCapability <- self.adminCapability.createNewMinter()
+            self.burnerCapability <- self.adminCapability.createNewBurner()
+            // let adminCap <- contract!.getAdminCapability()
+            // let minterCap <- adminCap.createNewMinter()
+            // let burnerCap <- adminCap.createNewBurner()
 
-            InterchainTokenService.account.save(<-adminCap, to: InterchainTokenService.getAdminCapabilityStoragePath(self.contractAddress)!)
-            InterchainTokenService.account.save(<-minterCap, to: InterchainTokenService.getMinterCapabilityStoragePath(self.contractAddress)!)
-            InterchainTokenService.account.save(<-burnerCap, to: InterchainTokenService.getBurnerCapabilityStoragePath(self.contractAddress)!)
-            self.adminCapability = InterchainTokenService.getAdminCapabilityStoragePath(self.contractAddress)!
-            self.minterCapability = InterchainTokenService.getMinterCapabilityStoragePath(self.contractAddress)!
-            self.burnerCapability = InterchainTokenService.getBurnerCapabilityStoragePath(self.contractAddress)!
+            // InterchainTokenService.account.save(<-adminCap, to: InterchainTokenService.getAdminCapabilityStoragePath(self.contractAddress)!)
+            // InterchainTokenService.account.save(<-minterCap, to: InterchainTokenService.getMinterCapabilityStoragePath(self.contractAddress)!)
+            // InterchainTokenService.account.save(<-burnerCap, to: InterchainTokenService.getBurnerCapabilityStoragePath(self.contractAddress)!)
+            // self.adminCapability = InterchainTokenService.getAdminCapabilityStoragePath(self.contractAddress)!
+            // self.minterCapability = InterchainTokenService.getMinterCapabilityStoragePath(self.contractAddress)!
+            // self.burnerCapability = InterchainTokenService.getBurnerCapabilityStoragePath(self.contractAddress)!
         }
 
     }
@@ -160,7 +163,7 @@ access(all) contract InterchainTokenService {
 
             let managedToken = (&self.managedTokens[tokenAddress] as &ManagedTokens?) ?? panic("could not borrow managed token ref")
 
-            let burnCap <- self.account.load<@AxelarFungibleTokenInterface.Burner>(from: managedToken.burnerCapability)!
+            let burnCap <- self.account.load<@{AxelarFungibleTokenInterface.BurnerInterface}>(from: managedToken.burnerCapability)!
 
             burnCap.burnTokens(from: <-vault)
 
@@ -217,9 +220,9 @@ access(all) contract InterchainTokenService {
             reciever.deposit(from: <-nativeVault.withdraw(amount: amount))
         } else {
             let managedToken = (&self.managedTokens[tokenAddress] as &ManagedTokens?) ?? panic("could not borrow managed token ref")
-            let minter = self.account.borrow<&AxelarFungibleTokenInterface.Minter>(from: managedToken.minterCapability)
+            let minter = self.account.borrow<&{AxelarFungibleTokenInterface.MinterInterface}>(from: managedToken.minterCapability)
                 ?? panic("Could not borrow managed token minter")
-            reciever.deposit(from: <-mintCap.mintTokens(amount: amount))
+            reciever.deposit(from: <-minter.mintTokens(amount: amount))
         }
    }
 
