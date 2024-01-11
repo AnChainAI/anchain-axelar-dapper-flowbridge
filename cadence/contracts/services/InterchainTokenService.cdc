@@ -67,19 +67,15 @@ access(all) contract InterchainTokenService {
             self.contractName = contractName
 
             let contract = authAccount.contracts.borrow<&AxelarFungibleTokenInterface>(name: contractName)
-            self.adminCapability <- contract!.getAdminCapability()
-            self.minterCapability <- self.adminCapability.createNewMinter()
-            self.burnerCapability <- self.adminCapability.createNewBurner()
-            // let adminCap <- contract!.getAdminCapability()
-            // let minterCap <- adminCap.createNewMinter()
-            // let burnerCap <- adminCap.createNewBurner()
-
-            // InterchainTokenService.account.save(<-adminCap, to: InterchainTokenService.getAdminCapabilityStoragePath(self.contractAddress)!)
-            // InterchainTokenService.account.save(<-minterCap, to: InterchainTokenService.getMinterCapabilityStoragePath(self.contractAddress)!)
-            // InterchainTokenService.account.save(<-burnerCap, to: InterchainTokenService.getBurnerCapabilityStoragePath(self.contractAddress)!)
-            // self.adminCapability = InterchainTokenService.getAdminCapabilityStoragePath(self.contractAddress)!
-            // self.minterCapability = InterchainTokenService.getMinterCapabilityStoragePath(self.contractAddress)!
-            // self.burnerCapability = InterchainTokenService.getBurnerCapabilityStoragePath(self.contractAddress)!
+            InterchainTokenService.account.save(<-contract!.getAdminCapability(), to: InterchainTokenService.getAdminCapabilityStoragePath(self.contractAddress)!)
+            
+            self.adminCapability = InterchainTokenService.account.link<&{AxelarFungibleTokenInterface.AdministratorInterface}>(InterchainTokenService.getAdminCapabilityPrivatePath(self.contractAddress)!, target: InterchainTokenService.getAdminCapabilityStoragePath(self.contractAddress)!)!
+            let adminCap = self.adminCapability.borrow()
+            InterchainTokenService.account.save(<-adminCap?.createNewMinter(), to: InterchainTokenService.getMinterCapabilityStoragePath(self.contractAddress)!)
+            InterchainTokenService.account.save(<-adminCap?.createNewBurner(), to: InterchainTokenService.getBurnerCapabilityStoragePath(self.contractAddress)!)
+            self.minterCapability = InterchainTokenService.account.link<&{AxelarFungibleTokenInterface.MinterInterface}>(InterchainTokenService.getMinterCapabilityPrivatePath(self.contractAddress)!, target: InterchainTokenService.getMinterCapabilityStoragePath(self.contractAddress)!)!
+            self.burnerCapability = InterchainTokenService.account.link<&{AxelarFungibleTokenInterface.BurnerInterface}>(InterchainTokenService.getBurnerCapabilityPrivatePath(self.contractAddress)!, target: InterchainTokenService.getBurnerCapabilityStoragePath(self.contractAddress)!)!
+            
         }
 
     }
@@ -162,13 +158,10 @@ access(all) contract InterchainTokenService {
         } else if self.tokens[tokenAddress] == TokenManagerType.Managed {
 
             let managedToken = (&self.managedTokens[tokenAddress] as &ManagedTokens?) ?? panic("could not borrow managed token ref")
-
-            let burnCap <- self.account.load<@{AxelarFungibleTokenInterface.BurnerInterface}>(from: managedToken.burnerCapability)!
-
-            burnCap.burnTokens(from: <-vault)
-
-            self.account.save(<- burnCap, to: managedToken.burnerCapability)
+            let burnCap = managedToken.burnerCapability.borrow()?.burnTokens(from: <- vault)
         }
+        
+
    }
 
    access(self) fun _transmitInterchainTransfer(senderIdentity: Capability<&{AxelarGateway.SenderIdentity}>, contractName: String, contractAddress: Address, destinationChain: String, destinationAddress: String, metadataVersion: UInt32, metadata: [UInt8], amount: UFix64){
@@ -220,9 +213,8 @@ access(all) contract InterchainTokenService {
             reciever.deposit(from: <-nativeVault.withdraw(amount: amount))
         } else {
             let managedToken = (&self.managedTokens[tokenAddress] as &ManagedTokens?) ?? panic("could not borrow managed token ref")
-            let minter = self.account.borrow<&{AxelarFungibleTokenInterface.MinterInterface}>(from: managedToken.minterCapability)
-                ?? panic("Could not borrow managed token minter")
-            reciever.deposit(from: <-minter.mintTokens(amount: amount))
+            let minter = managedToken.minterCapability.borrow()!
+            reciever.deposit(from: <-minter.mintTokens(amount: amount)!)
         }
    }
 
@@ -282,12 +274,24 @@ access(all) contract InterchainTokenService {
         return StoragePath(identifier: self.prefixAuthCapabilityName.concat(address.toString()).concat("_Minter"))
     }
 
+    access(all) fun getMinterCapabilityPrivatePath(_ address: Address): PrivatePath? {
+        return PrivatePath(identifier: self.prefixAuthCapabilityName.concat(address.toString()).concat("_Minter"))
+    }
+
     access(all) fun getBurnerCapabilityStoragePath(_ address: Address): StoragePath? {
         return StoragePath(identifier: self.prefixAuthCapabilityName.concat(address.toString()).concat("_Burner"))
     }
 
+    access(all) fun getBurnerCapabilityPrivatePath(_ address: Address): PrivatePath? {
+        return PrivatePath(identifier: self.prefixAuthCapabilityName.concat(address.toString()).concat("_Burner"))
+    }
+
     access(all) fun getAdminCapabilityStoragePath(_ address: Address): StoragePath? {
         return StoragePath(identifier: self.prefixAuthCapabilityName.concat(address.toString()).concat("_Admin"))
+    }
+
+    access(all) fun getAdminCapabilityPrivatePath(_ address: Address): PrivatePath? {
+        return PrivatePath(identifier: self.prefixAuthCapabilityName.concat(address.toString()).concat("_Admin"))
     }
 
     access(all) fun createTokenHash(contractName: String, address: Address): [UInt8]{
