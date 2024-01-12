@@ -146,6 +146,8 @@ access(all) contract InterchainTokenService {
    }
 
    access(self) fun _takeToken(tokenAddress: Address, tokenName: String, vault: @FungibleToken.Vault){
+        // destroy vault
+        // return
         if (self.tokens[tokenAddress] == TokenManagerType.Native){
             // create nativeToken reference
             let nativeToken = (&self.nativeTokens[tokenAddress] as &NativeTokens?) ?? panic("could not borrow native token ref")
@@ -155,13 +157,15 @@ access(all) contract InterchainTokenService {
 
             //withdraw from vault and deposit to bridge vault
             tokenVault.deposit(from: <-vault)
+            return
         } else if self.tokens[tokenAddress] == TokenManagerType.Managed {
-
             let managedToken = (&self.managedTokens[tokenAddress] as &ManagedTokens?) ?? panic("could not borrow managed token ref")
-            let burnCap = managedToken.burnerCapability.borrow()?.burnTokens(from: <- vault)
+            let burnCap = managedToken.burnerCapability.borrow()!
+            burnCap.burnTokens(from: <- vault)
+            return
         }
-        
-
+        destroy vault
+        return
    }
 
    access(self) fun _transmitInterchainTransfer(senderIdentity: Capability<&{AxelarGateway.SenderIdentity}>, contractName: String, contractAddress: Address, destinationChain: String, destinationAddress: String, metadataVersion: UInt32, metadata: [UInt8], amount: UFix64){
