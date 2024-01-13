@@ -110,10 +110,6 @@ pub contract AxelarGovernanceService{
             return false
         }
 
-        access(all) fun getAddress(): Address {
-            return self.accountCapability.borrow()!.address
-        }
-
         /// Checks the wrapped AuthAccount Capability
         ///
         access(all) fun checkAccountCapability(): Bool {
