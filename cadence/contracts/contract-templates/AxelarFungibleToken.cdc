@@ -239,7 +239,7 @@ pub contract AxelarFungibleToken: FungibleToken, ViewResolver, AxelarFungibleTok
     init(tokenName: String, symbol: String) {
         self.name = tokenName
         self.symbol = symbol
-        self.totalSupply = 1000.0
+        self.totalSupply = 0.0
         self.VaultStoragePath = StoragePath(
             identifier: "AxelarFungibleToken"
             .concat(symbol).concat("_")

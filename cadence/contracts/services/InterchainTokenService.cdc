@@ -31,24 +31,24 @@ access(all) contract InterchainTokenService {
     access(all) resource NativeTokens{
         access(all) let contractAddress: Address
         access(all) let contractName: String
-        access(all) let vaultRef: StoragePath
+        access(all) let vaultStoragePath: StoragePath
 
         init(
             contractName: String,
             contractAddress: Address,
-            vaultRef: StoragePath,
+            vaultStoragePath: StoragePath,
         ) {
             self.contractAddress = contractAddress
             self.contractName = contractName
-            self.vaultRef = vaultRef
+            self.vaultStoragePath = vaultStoragePath
         }
     }
 
-    access(self) fun createNativeTokens(contractName: String, contractAddress: Address, vaultRef: StoragePath): @NativeTokens{
+    access(self) fun createNativeTokens(contractName: String, contractAddress: Address, vaultStoragePath: StoragePath): @NativeTokens{
         return <- create NativeTokens(
             contractName: contractName,
             contractAddress: contractAddress,
-            vaultRef: vaultRef,
+            vaultStoragePath: vaultStoragePath,
         )
     }
 
@@ -153,7 +153,7 @@ access(all) contract InterchainTokenService {
             let nativeToken = (&self.nativeTokens[tokenAddress] as &NativeTokens?) ?? panic("could not borrow native token ref")
             
             //borrow the corresponding native token vault
-            let tokenVault = self.account.borrow<&FungibleToken.Vault>(from: nativeToken.vaultRef)!
+            let tokenVault = self.account.borrow<&FungibleToken.Vault>(from: nativeToken.vaultStoragePath)!
 
             //withdraw from vault and deposit to bridge vault
             tokenVault.deposit(from: <-vault)
@@ -210,7 +210,7 @@ access(all) contract InterchainTokenService {
             let nativeToken = (&self.nativeTokens[tokenAddress] as &NativeTokens?) ?? panic("could not borrow native token ref")
             
             //borrow the coresponding native token vault
-            let nativeVault = self.account.borrow<&FungibleToken.Vault>(from: nativeToken.vaultRef)
+            let nativeVault = self.account.borrow<&FungibleToken.Vault>(from: nativeToken.vaultStoragePath)
                 ?? panic("Could not borrow a reference to the native vault")
 
             //withdraw from vault and deposit to reciever
@@ -261,7 +261,7 @@ access(all) contract InterchainTokenService {
         
         //save empty vault to storage path and store native token resource an dictionary
         self.account.save( <- emptyVault, to: self.getVaultPath(address)!)
-        let nativeToken <- self.createNativeTokens(contractName: contractName, contractAddress: address, vaultRef: self.getVaultPath(address)!)
+        let nativeToken <- self.createNativeTokens(contractName: contractName, contractAddress: address, vaultStoragePath: self.getVaultPath(address)!)
         self.nativeTokens[address] <-! nativeToken
         self.tokens[address] = self.TokenManagerType.Native
     }
