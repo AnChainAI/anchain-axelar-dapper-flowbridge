@@ -189,7 +189,7 @@ pub contract AxelarGovernanceService{
         self.SELECTOR_CANCEL_PROPOSAL = Crypto.hash("cancelProposal".utf8, algorithm: HashAlgorithm.KECCAK_256)
         self.inboxHostAccountCapPrefix = "GovernanceUpdaterInbox_"
         self.prefixHostAccountCap = "GovernanceUpdaterCapability_"
-        self.HostStoragePath = StoragePath(identifier: "HostAccount_")!
+        self.HostStoragePath = StoragePath(identifier: "HostAccount_".concat(self.account.address.toString()))!
         self.UpdaterContractAccountPrivatePath = PrivatePath(identifier: "UpdaterContractAccount_".concat(self.account.address.toString()))!
         self.updaters <- {}
         self.proposals <- {}
