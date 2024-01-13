@@ -37,7 +37,7 @@ import {
             let hostCap = signer.getCapability<&AxelarGovernanceService.Host>(hostPrivatePath)
     
             assert(hostCap.check(), message: "Invalid Host Capability retrieved")
-    
+    assert(hostCap.borrow()!.getHostAddress()! == signer.address, message: "Host is configured for unexpected account")
             // Finally publish the Host Capability to the account that will store the Updater
             
             signer.inbox.publish(
