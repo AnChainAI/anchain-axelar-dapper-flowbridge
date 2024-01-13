@@ -141,7 +141,7 @@ pub contract AxelarGovernanceService{
             }
             self.hostAccountCap = hostAccountCap
             let hostAccount = self.hostAccountCap.borrow()!
-            self.address = hostAccount.getAddress()
+            self.address = hostAccount.getHostAddress() ?? panic("Host has invalid account capability")
             
 
         }
