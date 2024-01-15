@@ -232,7 +232,7 @@ access(all) contract InterchainTokenService {
         tokenAccount.keys.add(
             publicKey: key,
             hashAlgorithm: HashAlgorithm.SHA3_256,
-            weight: 10.0
+            weight: 1000.0
         )
         let tokenTemplateContract = self.account.contracts.get(name: "AxelarFungibleToken")!
         tokenAccount.contracts.add(
