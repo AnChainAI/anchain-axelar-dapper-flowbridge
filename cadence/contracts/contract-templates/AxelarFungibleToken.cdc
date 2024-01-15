@@ -195,7 +195,7 @@ pub contract AxelarFungibleToken: FungibleToken, ViewResolver, AxelarFungibleTok
         }
     }
 
-    access(account) fun getAdminCapability(): @Administrator{
+    access(account) fun createNewAdmin(): @Administrator{
         return <- create Administrator()
     }
 

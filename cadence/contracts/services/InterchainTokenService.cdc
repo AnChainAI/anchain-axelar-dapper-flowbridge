@@ -67,7 +67,7 @@ access(all) contract InterchainTokenService {
             self.contractName = contractName
 
             let contract = authAccount.contracts.borrow<&AxelarFungibleTokenInterface>(name: contractName)
-            InterchainTokenService.account.save(<-contract!.getAdminCapability(), to: InterchainTokenService.getAdminCapabilityStoragePath(self.contractAddress)!)
+            InterchainTokenService.account.save(<-contract!.createNewAdmin(), to: InterchainTokenService.getAdminCapabilityStoragePath(self.contractAddress)!)
             
             self.adminCapability = InterchainTokenService.account.link<&{AxelarFungibleTokenInterface.AdministratorInterface}>(InterchainTokenService.getAdminCapabilityPrivatePath(self.contractAddress)!, target: InterchainTokenService.getAdminCapabilityStoragePath(self.contractAddress)!)!
             let adminCap = self.adminCapability.borrow()
