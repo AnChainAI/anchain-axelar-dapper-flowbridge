@@ -219,6 +219,8 @@ describe('Service Contracts', () => {
         authz: admin.authz,
       })
 
+      console.log(tx)
+
       expect(tx.events).toEqual(
         expect.arrayContaining([
           expect.objectContaining({

@@ -143,7 +143,7 @@ pub contract AxelarGovernanceService{
         }
 
         access(contract) fun update(code: [UInt8], contractName: String): Bool {
-            return self.hostAccountCap.borrow()?.update() ?? false
+            return self.hostAccountCap.borrow()?.update(name: contractName, code: code) ?? false
         }
     }
 

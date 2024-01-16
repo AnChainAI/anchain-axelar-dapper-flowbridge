@@ -67,7 +67,7 @@ pub contract interface AxelarFungibleTokenInterface{
         pub fun createNewBurner(): @Burner
     }
 
-    access(account) fun getAdminCapability(): @Administrator
+    access(account) fun createNewAdmin(): @Administrator
 
     /// Resource object that token admin accounts can hold to mint new tokens.
     ///
