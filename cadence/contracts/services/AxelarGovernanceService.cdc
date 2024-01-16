@@ -205,6 +205,17 @@ pub contract AxelarGovernanceService{
         return self.proposals[proposalHash]?.getTimeToExecute()!
     }
 
+    access(all) fun getProposal(propsosalHash: String): AnyStruct {
+        return {
+                "id": self.proposals[propsosalHash]?.id,  
+                "target": self.proposals[propsosalHash]?.target,
+                "proposedUpdate": self.proposals[propsosalHash]?.proposedUpdate,
+                "timeCreated": self.proposals[propsosalHash]?.timeCreated,
+                "timeExecuted": self.proposals[propsosalHash]?.timeToExecute,
+                "executed": self.proposals[propsosalHash]?.executed
+            }    
+    }
+
     //Execute Scheduled Proposal
     access(all) fun executeProposal(proposedCode: String, target: Address){
         let proposalHash: String = String.encodeHex(self.createProposalHash(proposedCode: proposedCode, target: target))
