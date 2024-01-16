@@ -44,6 +44,12 @@ access(all) contract AxelarGasService {
         amount: UFix64,
     )
 
+    access(self) fun borrowPaymentVaultAndDeposit(senderVault: @FungibleToken.Vault){
+        let vault = self.account.borrow<&FlowToken.Vault>(from: /storage/flowTokenVault)
+            ?? panic("Could not borrow reference to the FlowToken vault")
+        vault.deposit(from: <- senderVault)
+    }
+
     access(all) fun payNativeGasForContractCall(
         sender: Address,
         senderVault: @FungibleToken.Vault,
@@ -55,18 +61,18 @@ access(all) contract AxelarGasService {
     pre {
         senderVault.balance > 0.0: "Provided vault is empty"
     }
-        let paymentVault = self.account.borrow<&FlowToken.Vault>(from: /storage/flowTokenVault)
-            ?? panic("Could not borrow reference to the FlowToken vault")
-        paymentVault.deposit(from: <-senderVault)
+        let senderVaultBalance = senderVault.balance
+        let paymentVault = self.borrowPaymentVaultAndDeposit(senderVault: <- senderVault)
 
         emit NativeGasPaidForContractCall(
             sourceAddress: sender,
             destinationChain: destinationChain,
             destinationAddress: destinationAddress,
             payloadHash: payloadHash,
-            gasFeeAmount: paymentVault.balance,
+            gasFeeAmount: senderVaultBalance,
             refundAddress: refundAddress,
         )
+
     }
 
     access(all) fun payNativeGasForExpressCall(
@@ -80,16 +86,15 @@ access(all) contract AxelarGasService {
     pre {
         senderVault.balance > 0.0: "Provided vault is empty"
     }
-        let paymentVault = self.account.borrow<&FlowToken.Vault>(from: /storage/flowTokenVault)
-            ?? panic("Could not borrow reference to the FlowToken vault")
-        paymentVault.deposit(from: <-senderVault)
+        let senderVaultBalance = senderVault.balance
+        let paymentVault = self.borrowPaymentVaultAndDeposit(senderVault: <- senderVault)
 
         emit NativeGasPaidForExpressCall(
             sourceAddress: sender,
             destinationChain: destinationChain,
             destinationAddress: destinationAddress,
             payloadHash: payloadHash,
-            gasFeeAmount: paymentVault.balance,
+            gasFeeAmount: senderVaultBalance,
             refundAddress: refundAddress,
         )
     }
@@ -103,14 +108,13 @@ access(all) contract AxelarGasService {
     pre {
         senderVault.balance > 0.0: "Provided vault is empty"
     }
-        let paymentVault = self.account.borrow<&FlowToken.Vault>(from: /storage/flowTokenVault)
-            ?? panic("Could not borrow reference to the FlowToken vault")
-        paymentVault.deposit(from: <-senderVault)
+        let senderVaultBalance = senderVault.balance
+        let paymentVault = self.borrowPaymentVaultAndDeposit(senderVault: <- senderVault)
 
         emit NativeGasAdded(
             txHash: txHash,
             logIndex: logIndex,
-            gasFeeAmount: paymentVault.balance,
+            gasFeeAmount: senderVaultBalance,
             refundAddress: refundAddress,
         )
     }
@@ -124,14 +128,13 @@ access(all) contract AxelarGasService {
     pre {
         senderVault.balance > 0.0: "Provided vault is empty"
     }
-        let paymentVault = self.account.borrow<&FlowToken.Vault>(from: /storage/flowTokenVault)
-            ?? panic("Could not borrow reference to the FlowToken vault")
-        paymentVault.deposit(from: <-senderVault)
+        let senderVaultBalance = senderVault.balance
+        let paymentVault = self.borrowPaymentVaultAndDeposit(senderVault: <- senderVault)
 
         emit NativeExpressGasAdded(
             txHash: txHash,
             logIndex: logIndex,
-            gasFeeAmount: paymentVault.balance,
+            gasFeeAmount: senderVaultBalance,
             refundAddress: refundAddress,
         )
     }
