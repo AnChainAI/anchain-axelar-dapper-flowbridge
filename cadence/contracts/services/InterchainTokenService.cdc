@@ -84,7 +84,9 @@ access(all) contract InterchainTokenService {
         contractName: String,
         contractAddress: Address,
         tokenName: String,
-        tokenSymbol: String
+        tokenSymbol: String,
+        sourceChain: String,
+        sourceAddress: String
     )
 
     access(all) event InterchainTransfer(
@@ -222,7 +224,7 @@ access(all) contract InterchainTokenService {
         }
    }
 
-    access(self) fun _launchToken(name: String, symbol: String): Address{
+    access(self) fun _launchToken(name: String, symbol: String, sourceChain: String, sourceAddress: String): Address{
         let tokenAccount = AuthAccount(payer: self.account)
         let tokenAccountAddress = tokenAccount.address
         let key = PublicKey(
@@ -240,12 +242,16 @@ access(all) contract InterchainTokenService {
             code: tokenTemplateContract.code,
             tokenName: name,
             tokenSymbol: symbol,
+            sourceChain: sourceChain,
+            sourceAddress: sourceAddress
         )
         emit TokenContractLaunched(
             contractName: "AxelarFungibleToken",
             contractAddress: tokenAccountAddress,
             tokenName: name,
             tokenSymbol: symbol,
+            sourceChain: sourceChain,
+            sourceAddress: sourceAddress
         )
         let managedTokens <- create ManagedTokens(contractName: "AxelarFungibleToken", authAccount: tokenAccount)
         self.managedTokens[tokenAccountAddress] <-! managedTokens

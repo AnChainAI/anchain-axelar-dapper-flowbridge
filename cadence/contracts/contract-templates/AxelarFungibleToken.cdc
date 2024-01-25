@@ -39,6 +39,8 @@ pub contract AxelarFungibleToken: FungibleToken, ViewResolver, AxelarFungibleTok
 
     pub let name: String
     pub let symbol: String
+    pub let sourceChain: String
+    pub let sourceAddress: String
 
     /// Each user stores an instance of only the Vault in their storage
     /// The functions in the Vault and governed by the pre and post conditions
@@ -236,9 +238,11 @@ pub contract AxelarFungibleToken: FungibleToken, ViewResolver, AxelarFungibleTok
         }
     }
 
-    init(tokenName: String, symbol: String) {
+    init(tokenName: String, symbol: String, sourceChain: String, sourceAddress: String) {
         self.name = tokenName
         self.symbol = symbol
+        self.sourceChain = sourceChain
+        self.sourceAddress = sourceAddress
         self.totalSupply = 0.0
         self.VaultStoragePath = StoragePath(
             identifier: "AxelarFungibleToken"

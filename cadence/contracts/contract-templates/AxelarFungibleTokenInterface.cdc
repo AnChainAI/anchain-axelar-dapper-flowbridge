@@ -90,5 +90,5 @@ pub contract interface AxelarFungibleTokenInterface{
         pub fun burnTokens(from: @FungibleToken.Vault)
     }
 
-    init(tokenName: String, symbol: String)
+    init(tokenName: String, symbol: String, sourceChain: String, sourceAddress: String)
 }

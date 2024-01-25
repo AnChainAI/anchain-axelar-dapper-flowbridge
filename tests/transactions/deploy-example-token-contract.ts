@@ -12,6 +12,8 @@ transaction(
         code: contractCode.decodeHex(),
         tokenName: "Axelar Fungible Token",
         tokenSymbol: "AXL",
+        sourceChain: "ETH",
+        sourceAddress: "0x123"
       )
     }
   }
