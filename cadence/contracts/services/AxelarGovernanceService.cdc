@@ -315,7 +315,7 @@ pub contract AxelarGovernanceService{
         return nil
     }
 
-    access(all) fun getAuthCapabilityStoragePath(_ address: Address): StoragePath? {
+    access(all) fun getUpdaterStoragePath(forAddress: Address): StoragePath? {
         return StoragePath(identifier: self.prefixHostAccountCap.concat(address.toString()))
     }
     
