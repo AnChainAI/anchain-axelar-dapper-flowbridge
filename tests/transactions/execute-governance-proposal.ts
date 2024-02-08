@@ -7,10 +7,10 @@ import {
   const CODE = (address: string) => `
   import AxelarGovernanceService from ${address}
   
-  transaction(proposedCode: String, target: Address) {
+  transaction(proposedCode: String, target: Address, contractName: String) {
     prepare(acct: AuthAccount) {}
     execute{
-      AxelarGovernanceService.executeProposal(proposedCode: proposedCode, target: target)
+      AxelarGovernanceService.executeProposal(proposedCode: proposedCode, target: target, contractName: contractName)
     }
   }
   `
@@ -19,6 +19,7 @@ import {
     readonly address: string
     readonly target: string
     readonly proposedCode: string
+    readonly contractName: string
   }
   
   export async function executeGovernanceProposal(
@@ -29,6 +30,7 @@ import {
       args: (arg, t) => [
         arg(params.args.proposedCode, t.String),
         arg(params.args.target, t.Address),
+        arg(params.args.contractName, t.String)
         
       ],
       authorizations: [params.authz],

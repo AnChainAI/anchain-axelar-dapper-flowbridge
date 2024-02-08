@@ -261,6 +261,7 @@ describe('Service Contracts', () => {
     let sourceTxHash: string
     let sourceEventIndex: number
     let commandId: string
+    let contractName: string
 
     it('should approve a contract call', async () => {
       // Create a relayer account for relaying messages with transactions
@@ -286,6 +287,7 @@ describe('Service Contracts', () => {
       sourceTxHash = keccak256('0x123abc123abc')
       sourceEventIndex = 17
       commandId = randomUUID()
+      contractName= "AxelarGateway"
 
       // Generate a hex encoded message from the data
       const approveData = dataToHexEncodedMessage(
@@ -397,6 +399,7 @@ describe('Service Contracts', () => {
           address: governanceUser.addr,
           target: admin.addr,
           proposedCode: rawPayload,
+          contractName: contractName
         },
       })
 
@@ -410,6 +413,7 @@ describe('Service Contracts', () => {
           address: governanceUser.addr,
           target: admin.addr,
           proposedCode: rawPayload,
+          contractName: contractName
         },
         authz: relayer.authz,
       })

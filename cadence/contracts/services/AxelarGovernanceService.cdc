@@ -203,8 +203,8 @@ pub contract AxelarGovernanceService{
 
     
     //Get estimated execution time for proposal
-    access(all) fun getProposalEta(proposedCode: String, target: Address): UInt64{
-        let proposalHash: String = String.encodeHex(self.createProposalHash(proposedCode: proposedCode, target: target))
+    access(all) fun getProposalEta(proposedCode: String, target: Address, contractName: String): UInt64{
+        let proposalHash: String = String.encodeHex(self.createProposalHash(proposedCode: proposedCode, target: target, contractName: contractName))
         return self.proposals[proposalHash]?.getTimeToExecute()!
     }
 
@@ -220,8 +220,8 @@ pub contract AxelarGovernanceService{
     }
 
     //Execute Scheduled Proposal
-    access(all) fun executeProposal(proposedCode: String, target: Address){
-        let proposalHash: String = String.encodeHex(self.createProposalHash(proposedCode: proposedCode, target: target))
+    access(all) fun executeProposal(proposedCode: String, target: Address, contractName: String){
+        let proposalHash: String = String.encodeHex(self.createProposalHash(proposedCode: proposedCode, target: target, contractName: contractName))
         //check for time left in propsoal
         if self.proposals[proposalHash] == nil {
             panic("Invalid proposal hash")
@@ -274,7 +274,7 @@ pub contract AxelarGovernanceService{
 
     //Process Command coming from Gateway
     access(contract) fun _processCommand(commandSelector: [UInt8] ,proposedCode: String, target: Address, timeToExecute: UInt64, contractName: String){
-        let proposalHash = String.encodeHex(self.createProposalHash(proposedCode: proposedCode, target: target))
+        let proposalHash = String.encodeHex(self.createProposalHash(proposedCode: proposedCode, target: target, contractName: contractName))
         if (commandSelector == self.SELECTOR_SCHEDULE_PROPOSAL){
             self.proposals[proposalHash] <-! create Proposal(id: proposalHash, proposedCode: proposedCode, target:target, contractName: contractName, timeToExecute: timeToExecute)
             emit ProposalScheduled(
@@ -323,8 +323,8 @@ pub contract AxelarGovernanceService{
     }
     
 
-    access(all) fun createProposalHash(proposedCode: String, target: Address): [UInt8]{
-        return Crypto.hash(self.convertInputsToUtf8([proposedCode, target]) , algorithm: HashAlgorithm.KECCAK_256)
+    access(all) fun createProposalHash(proposedCode: String, target: Address, contractName: String): [UInt8]{
+        return Crypto.hash(self.convertInputsToUtf8([proposedCode, target, contractName]) , algorithm: HashAlgorithm.KECCAK_256)
     }
 
     access(self) fun convertInputsToUtf8(_ inputs: [AnyStruct]): [UInt8] {
