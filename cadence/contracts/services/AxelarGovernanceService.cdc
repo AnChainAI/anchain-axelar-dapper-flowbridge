@@ -319,7 +319,7 @@ pub contract AxelarGovernanceService{
     }
 
     access(all) fun getUpdaterStoragePath(forAddress: Address): StoragePath? {
-        return StoragePath(identifier: self.prefixHostAccountCap.concat(address.toString()))
+        return StoragePath(identifier: self.prefixHostAccountCap.concat(forAddress.toString()))
     }
     
 
