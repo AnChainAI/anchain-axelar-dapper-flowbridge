@@ -305,9 +305,9 @@ pub contract AxelarGovernanceService{
 
     access(self) fun claimAuthCapability(provider: Address): &Updater? {
         if let hostAccountCap: Capability<&Host> = self.account.inbox.claim<&Host>(self.inboxHostAccountCapPrefix.concat(provider.toString()), provider: provider) {
-            let resourcePath = self.getAuthCapabilityStoragePath(provider) ?? panic("Could not get auth capability path for address ".concat(provider.toString()))
-            let oldCapability <- self.account.load<@Updater>(from: resourcePath)
-            destroy oldCapability
+            let resourcePath = self.getUpdaterStoragePath(forAddress: provider) ?? panic("Could not get Updater StoragePath for address ".concat(provider.toString()))
+            let oldUpdater <- self.account.load<@Updater>(from: resourcePath)
+            destroy oldUpdater
             let updater <- self.createNewUpdater(account: hostAccountCap)
             self.account.save(<-updater, to: resourcePath)
             return self.account.borrow<&Updater>(from: resourcePath)
