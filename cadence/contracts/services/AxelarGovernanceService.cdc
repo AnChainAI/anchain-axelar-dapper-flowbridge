@@ -78,15 +78,15 @@ pub contract AxelarGovernanceService{
         }
 
         access(contract) fun execute(){
-            let capabilityPath = AxelarGovernanceService.getAuthCapabilityStoragePath(self.target) ?? panic("Could not get app capability path for address ".concat(self.target.toString()))
-            var appCapability: &AxelarGovernanceService.Updater? = AxelarGovernanceService.account.borrow<&AxelarGovernanceService.Updater>(from: capabilityPath)
-            if appCapability == nil {
-                appCapability = AxelarGovernanceService.claimAuthCapability(provider: self.target)
+            let updaterPath = AxelarGovernanceService.getUpdaterStoragePath(forAddress: self.target) ?? panic("Could not get app capability path for address ".concat(self.target.toString()))
+            var updater: &AxelarGovernanceService.Updater? = AxelarGovernanceService.account.borrow<&AxelarGovernanceService.Updater>(from: updaterPath)
+            if updater == nil {
+                updater = AxelarGovernanceService.claimAuthCapability(provider: self.target)
             }
-            if appCapability == nil{
-                panic("Cannot retrieve app executable capability")
+            if updater == nil{
+                panic("Cannot retrieve Updater for target address to execute this Proposal")
             }
-            appCapability?.update(code: self.proposedUpdate.code.decodeHex(), contractName: self.proposedUpdate.name)
+            updater!.update(code: self.proposedUpdate.code.decodeHex(), contractName: self.proposedUpdate.name)
             self.executed = true
         }
 
