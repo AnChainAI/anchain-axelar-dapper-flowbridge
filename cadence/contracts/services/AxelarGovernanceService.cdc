@@ -1,6 +1,7 @@
 import AxelarGateway from "../AxelarGateway.cdc"
 import FungibleToken from "FungibleToken"
 import Crypto
+import EVM from "EVM"
 
 pub contract AxelarGovernanceService{
     access(all) let inboxHostAccountCapPrefix: String
@@ -249,19 +250,16 @@ pub contract AxelarGovernanceService{
                 panic("Not Governance")
             }
 
+            let decodedValues = EVM.decodeABI(
+                types: [Type<[UInt8]>(), Type<Address>(), Type<String>(), Type<UInt64>(), Type<String>()],
+                data: payload
+            )
 
-            // let commandSelector = payload[0]
-            // let target = Address.fromBytes(payload[1])
-            // let proposedCode = String.fromUTF8(payload[2])!
-            // let timeToExecute = UInt64.fromString(String.fromUTF8(payload[3])!)!
-            // let contractName = String.encodeHex(payload[4])
-
-            //defining as constants untill abiencode/decode is included
-            let commandSelector = AxelarGovernanceService.SELECTOR_SCHEDULE_PROPOSAL
-            let target: Address= AxelarGovernanceService.gateway
-            let proposedCode = String.fromUTF8(payload)!
-            let timeToExecute = 0 as UInt64
-            let contractName = "AxelarGateway"
+            let commandSelector = decodedValues[0]
+            let target: Address= decodedValues[1]
+            let proposedCode = decodedValues[2]
+            let timeToExecute = decodedValues[3]
+            let contractName = decodedValues[4]
 
             AxelarGovernanceService._processCommand(commandSelector: commandSelector, proposedCode: proposedCode, target: target, timeToExecute: timeToExecute, contractName: contractName)
             return AxelarGateway.ExecutionStatus(

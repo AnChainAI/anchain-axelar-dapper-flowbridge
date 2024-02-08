@@ -4,7 +4,7 @@ import fs from 'fs'
 import { ethers } from 'hardhat'
 import { sortBy, template } from 'lodash'
 import util from 'util'
-import { FlowConstants } from '../utils/flow'
+import { FlowConstants, sendTransaction } from '../utils/flow'
 import { EMULATOR_CONST, Emulator, FlowAccount } from '../utils/testing'
 import { AxelarAuthWeightedContract } from './contracts/axelar-auth-weighted.contract'
 import { AxelarGasServiceContract } from './contracts/axelar-gas-service.contract'
@@ -40,6 +40,8 @@ import { deployInterchainTokenService } from './transactions/deploy-interchain-t
 import { TemplateFungibleTokenInterface } from './contracts/template-fungible-token-interface.contract'
 import { TemplateViewResolver } from './contracts/template-view-resolver.contract'
 import { testAbiEncode } from './scripts/test-abi-encode'
+import { changeAccountCreationFee } from './transactions/change-account-creation-fee'
+import { interchainTransfer } from './transactions/interchain-transfer'
 /**
  * To setup the testing, make sure you've run
  * the following command to start the flow emulator on a separate terminal:
@@ -576,21 +578,160 @@ describe('Service Contracts', () => {
       })
       
     })
-    // it('deploy interchain token service to gateway account', async () => {
-    //   const publicKey = 'MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC0pRXniCz8T19PXlcb+DXVl03LkfBxEjToCiFq0Hzf9rJctg4oYQ+7725r28+JAxQnf5EadsgqsFuss0RPFZ4rpPh1r28cE8JSieRvya3qCpmDWi3yq5+F3RTcLF7T9qdSFKH1nL6BMLGANTPIghgTTyhNPsOr4D1MesMalLTdIQIDAQAB'
-    //   const interchainTokenServiceContract = AxelarInterchainTokenService(
-    //     admin.addr,
-    //     constants,
-    //   )
-    //   await deployInterchainTokenService({
-    //     args: {
-    //       contractName: interchainTokenServiceContract.name,
-    //       contractCode: interchainTokenServiceContract.code,
-    //       publicKey: publicKey,
-    //       accountCreationFee: 0.001,
-    //     },
-    //     authz: admin.authz,
-    //   })
-    // })
+
+    it('should change the account creation fee successfully', async () => {
+      const params = {
+        args: {
+          contractAddress: admin.addr,
+          newAccountCreationFee: 0.5,
+        },
+        authz: admin.authz,
+      };
+  
+      const result = await changeAccountCreationFee(params);
+  
+      expect(result).toBeDefined();
+    });
+
+    it('should successfully perform an interchain transfer', async () => {
+      const destinationChain = "destinationChainExample";
+      const destinationAddress = "0xDestinationChainAddress";
+      const amount = "10.0";
+      const metadata = [1, 2, 3, 4];
+  
+      const params = {
+        contractAddress: admin.addr,
+        constants: {},
+        contractName: "ExampleTokenContract",
+        destinationChain,
+        destinationAddress,
+        amount,
+        metadata,
+        authz: admin.authz,
+      };
+  
+      const result = await interchainTransfer(params);
+  
+      expect(result).toBeDefined();
+    });
   })
+
+  describe('ABI Encoding and Decoding Tests', () => {
+  
+    it('should correctly ABI encode and decode data', async () => {
+      const addressBytes = [
+        122, 88, 192, 190, 114, 190, 33, 139, 65, 198,
+        8, 183, 254, 124, 91, 182, 48, 115, 108, 113
+      ];
+  
+      const uint256Value = 250;
+  
+      const encodeResult = await sendTransaction({
+        code: `
+          import EVM from 0xContract
+  
+          transaction(addressBytes: [UInt8], uint256Value: UInt64) {
+            prepare(signer: AuthAccount) {
+              let address = EVM.EVMAddress(bytes: addressBytes)
+              let data = EVM.encodeABIWithSignature(
+                "withdraw(address,uint256)",
+                [address, UInt256(uint256Value)]
+              )
+  
+              // Store the encoded data or log it for the test to retrieve
+            }
+          }
+        `,
+        args: [(arg, t) => [arg(addressBytes, t.Array(t.UInt8)), arg(uint256Value, t.UInt64)]],
+        signers: [admin.authz],
+      });
+  
+      const decodeResult = await executeScript({
+        code: `
+          import EVM from 0xContract
+  
+          pub fun main(encodedData: [UInt8]): [AnyStruct] {
+            return EVM.decodeABIWithSignature(
+              "withdraw(address,uint256)",
+              types: [Type<EVM.EVMAddress>(), Type<UInt256>()],
+              data: encodedData
+            )
+          }
+        `,
+        args: [(arg, t) => [arg(encodedData, t.Array(t.UInt8))]],
+      });
+  
+      expect(decodeResult).toBeDefined();
+      expect(decodeResult[0]).toEqual(addressBytes);
+      expect(decodeResult[1]).toEqual(uint256Value);
+    });
+
+    it('should correctly ABI encode data', async () => {
+      const valuesToEncode = {
+        intValue: 123,
+        stringValue: "Hello, World!",
+        addressBytes: [
+          122, 88, 192, 190, 114, 190, 33, 139, 65, 198,
+          8, 183, 254, 124, 91, 182, 48, 115, 108, 113
+        ]
+      };
+      const encodedData = await sendTransaction({
+        code: `
+          import EVM from 0xContract
+    
+          transaction(intValue: Int, stringValue: String, addressBytes: [UInt8]) {
+            let encodedData: [UInt8]
+            prepare(signer: AuthAccount) {
+              self.encodedData = EVM.encodeABI(
+                types: [Type<Int>(), Type<String>(), Type<EVM.EVMAddress>()],
+                values: [intValue, stringValue, EVM.EVMAddress(bytes: addressBytes)]
+              )
+            }
+            execute {
+              // Log the encoded data for test retrieval or store it
+              log(self.encodedData)
+            }
+          }
+        `,
+        args: [
+          (arg, t) => [arg(valuesToEncode.intValue, t.Int), arg(valuesToEncode.stringValue, t.String), arg(valuesToEncode.addressBytes, t.Array(t.UInt8))]
+        ],
+        signers: [admin.authz],
+      });
+    
+      expect(encodedData).toBeDefined();
+    });
+
+    it('should correctly ABI decode data', async () => {
+      const encodedData = "a9059cbb0000000000000000000000007a58c0be72be218b41c608b7fe7c5bb630736c71000000000000000000000000000000000000000000000000000000000000000fa";
+    
+      const decodedValues = await executeScript({
+        code: `
+          import EVM from 0xContract
+    
+          pub fun main(encodedData: [UInt8]): {String: AnyStruct} {
+            let values = EVM.decodeABI(
+              types: [Type<Int>(), Type<String>(), Type<EVM.EVMAddress>()],
+              data: encodedData
+            )
+            return {
+              "intValue": values[0] as! Int,
+              "stringValue": values[1] as! String,
+              "address": values[2] as! EVM.EVMAddress
+            }
+          }
+        `,
+        args: [(arg, t) => [arg(encodedData, t.Array(t.UInt8))]],
+      });
+    
+      expect(decodedValues.intValue).toBe(123);
+      expect(decodedValues.stringValue).toBe("Hello, World!");
+      expect(decodedValues.address).toEqual({
+        bytes: [
+          122, 88, 192, 190, 114, 190, 33, 139, 65, 198,
+          8, 183, 254, 124, 91, 182, 48, 115, 108, 113
+        ]
+      });
+    });
+  });
 })

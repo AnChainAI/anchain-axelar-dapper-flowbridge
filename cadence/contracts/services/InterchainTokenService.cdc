@@ -142,9 +142,12 @@ access(all) contract InterchainTokenService {
         let amount = vault.balance
         self._takeToken(tokenAddress: contractAddress, tokenName: contractName, vault: <-vault)
 
-        //TODO: add metadata version check, awaiting ABI encode/decode support
+        let decodeMetadataVersion = EVM.decodeABI(
+            types: [Type<UInt32>(), Type<[UInt8]>()],
+            data: metadata
+        )
 
-        self._transmitInterchainTransfer(senderIdentity: senderIdentity, contractName: contractName, contractAddress: contractAddress, destinationChain: destinationChain, destinationAddress: destinationAddress, metadataVersion: 0, metadata: metadata, amount: amount)
+        self._transmitInterchainTransfer(senderIdentity: senderIdentity, contractName: contractName, contractAddress: contractAddress, destinationChain: destinationChain, destinationAddress: destinationAddress, metadataVersion: decodeMetadataVersion[0], metadata: metadata, amount: amount)
    }
 
    access(self) fun _takeToken(tokenAddress: Address, tokenName: String, vault: @FungibleToken.Vault){
@@ -185,8 +188,7 @@ access(all) contract InterchainTokenService {
             amount: amount,
             datahash: datahash
         )
-
-        //Awaiting ABI.Encode/decode support to parse metadata
+        
 
         AxelarGateway.callContract(
             senderIdentity: senderIdentity,
@@ -196,8 +198,41 @@ access(all) contract InterchainTokenService {
         )
     }
 
-    access(self) fun _processCommand(commandSelector: [UInt8], payload: [UInt8]){
+    access(all) resource ExecutableResource: AxelarGateway.Executable, AxelarGateway.SenderIdentity {
+        access(all) fun executeApp(commandResource: &AxelarGateway.CGPCommand, sourceChain: String, sourceAddress: String, payload: [UInt8], receiver: &{FungibleToken.Receiver}?): AxelarGateway.ExecutionStatus{
+            let decodedValues = EVM.decodeABI(
+                types: [Type<[UInt8]>(), Type<[UInt8]>()],
+                data: payload
+            )
+
+            let commandSelector = decodedValues[0]
+            let updatedPayload = decodedValues[1]
+
+            InterchainTokenService._processCommand(commandSelector: commandSelector, payload: updatedPayload, sourceChain: sourceChain, sourceAddress: sourceAddress)
+            return AxelarGateway.ExecutionStatus(
+                isExecuted: true,
+                statusCode: 0,
+                errorMessage: ""
+            )
+        }
+    }
+
+    access(self) fun _processCommand(commandSelector: [UInt8], payload: [UInt8], sourceChain: String, sourceAddress: String, reciever: &{FungibleToken.Receiver}){
         //call function based on commandSelector
+
+        if(commandSelector == self.DEPLOY_INTERCHAIN_TOKEN){
+            let decodedValues = EVM.decodeABI(
+                types: [Type<String>(), Type<String>],
+                data: payload
+            )
+            self._launchToken(name: decodedVaules[0], symbol: decodedVaules[1], sourceChain, sourceAddress)
+        }else if (commandSelector == self.INTERCHAIN_TRANSFER){
+            let decodedValues = EVM.decodeABI(
+                types: [Type<UFix64>(), Type<Address>(), Type<String>()],
+                data: payload
+            )
+            self._withdraw(amount: decodedVaules[0], tokenAddress: decodedValues[1], tokenName: decodedVaules[2], reciever: reciever)
+        }
     }
 
     access(self) fun _withdraw(amount: UFix64, tokenAddress: Address, tokenName: String, reciever: &{FungibleToken.Receiver}){
