@@ -226,9 +226,9 @@ pub contract AxelarGovernanceService{
         if self.proposals[proposalHash] == nil {
             panic("Invalid proposal hash")
         }
-        if(self.proposals[proposalHash]!.getTimeToExecute() <= UInt64(getCurrentBlock().timestamp)) {
+        if(self.proposals[proposalHash]?.getTimeToExecute()! <= UInt64(getCurrentBlock().timestamp)) {
             //Execute Proposal
-            self.proposals[proposalHash]!.execute()
+            self.proposals[proposalHash]?.execute()
 
             emit ProposalExecuted(
                 proposalHash: proposalHash,
