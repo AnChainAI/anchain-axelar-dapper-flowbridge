@@ -57,6 +57,9 @@ pub contract AxelarGovernanceService{
         access(contract) var executed: Bool
 
         init(id: String, proposedCode: String, target: Address, contractName: String, timeToExecute: UInt64){
+        pre {
+            getAccount(target).contracts.names.contains(contractName): "Target does not currently host the named contract"
+        }
             self.id = id
             self.target = target
             self.proposedUpdate = ContractUpdate(address: target, name: contractName, code: proposedCode)  
