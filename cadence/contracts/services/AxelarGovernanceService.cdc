@@ -276,6 +276,9 @@ pub contract AxelarGovernanceService{
     access(contract) fun _processCommand(commandSelector: [UInt8] ,proposedCode: String, target: Address, timeToExecute: UInt64, contractName: String){
         let proposalHash = String.encodeHex(self.createProposalHash(proposedCode: proposedCode, target: target, contractName: contractName))
         if (commandSelector == self.SELECTOR_SCHEDULE_PROPOSAL){
+            if (self.proposals[proposalHash] != nil){
+                panic("Proposal already exists")
+            }
             self.proposals[proposalHash] <-! create Proposal(id: proposalHash, proposedCode: proposedCode, target:target, contractName: contractName, timeToExecute: timeToExecute)
             emit ProposalScheduled(
                 proposalHash: proposalHash,
@@ -284,6 +287,9 @@ pub contract AxelarGovernanceService{
                 eta: timeToExecute
             )
         }else if (commandSelector == self.SELECTOR_CANCEL_PROPOSAL){
+            if (self.proposals[proposalHash] == nil){
+                panic("Proposal does not exist")
+            }
             destroy <- self.proposals.remove(key: proposalHash)
             
             emit ProposalCancelled(
