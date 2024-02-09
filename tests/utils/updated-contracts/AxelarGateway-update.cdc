@@ -1,9 +1,8 @@
 import AxelarAuthWeighted from "./auth/AxelarAuthWeighted.cdc"
 import AddressUtils from "./standard/AddressUtils.cdc"
-import FungibleToken from "FungibleToken"
 import Crypto
 
-// Main GateWay contract for sending and receiving interchain messages
+// Main GateWay contract for audit
 access(all) contract AxelarGateway {
   access(self) let SELECTOR_APPROVE_CONTRACT_CALL: [UInt8]
   access(self) let SELECTOR_TRANSFER_OPERATORSHIP: [UInt8]
@@ -11,9 +10,11 @@ access(all) contract AxelarGateway {
 
   access(all) resource CGPCommand {
     access(all) var commandId: String
+    access(all) var isExecuted: Bool
 
     init(commandId: String) {
       self.commandId = commandId
+      self.isExecuted = false
     }
   }
 
@@ -41,12 +42,12 @@ access(all) contract AxelarGateway {
   )
 
   access(all) struct ApproveContractCallParams {
-    access(all) let sourceChain: String
-    access(all) let sourceAddress: String
-    access(all) let contractAddress: String
-    access(all) let payloadHash: String
-    access(all) let sourceTxHash: String
-    access(all) let sourceEventIndex: UInt256
+    pub let sourceChain: String
+    pub let sourceAddress: String
+    pub let contractAddress: String
+    pub let payloadHash: String
+    pub let sourceTxHash: String
+    pub let sourceEventIndex: UInt256
 
     init(
       sourceChain: String,
@@ -67,25 +68,28 @@ access(all) contract AxelarGateway {
 
   access(all) struct ExecutionStatus {
     access(all) let isExecuted: Bool
-    access(all) let errorMessage: String? /*	An error message with 20 characters in length if it exists */
+    access(all) let statusCode: UInt64
+    access(all) let errorMessage: String
 
-    init(isExecuted: Bool, errorMessage: String?) {
-      pre {
-        errorMessage == nil || errorMessage!.length <= 20 : "Error message length must be less than or equal to 20"
-      }
-
+    init(
+      isExecuted: Bool,
+      statusCode: UInt64,
+      errorMessage: String
+    ) {
       self.isExecuted = isExecuted
+      self.statusCode = statusCode
       self.errorMessage = errorMessage
     }
   }
 
-    access(all) let executedCommands: {String: ExecutionStatus}
-    access(all) let approvedCommands: @{String: CGPCommand}
+  access(self) let executedCommands: {String: ExecutionStatus}
+  access(self) let approvedCommands: @{String: CGPCommand}
 
   init() {        
     self.SELECTOR_TRANSFER_OPERATORSHIP = Crypto.hash("transferOperatorship".utf8, algorithm: HashAlgorithm.KECCAK_256)
     self.SELECTOR_APPROVE_CONTRACT_CALL = Crypto.hash("approveContractCall".utf8, algorithm: HashAlgorithm.KECCAK_256)
     self.PREFIX_APP_CAPABILITY_NAME = "AppCapabilityPath"
+
     self.executedCommands = {}
     self.approvedCommands <- {}
   }
@@ -137,7 +141,7 @@ access(all) contract AxelarGateway {
   }
 
   access(all) resource interface Executable {
-    access(all) fun executeApp(commandResource: &AxelarGateway.CGPCommand, sourceChain: String, sourceAddress: String, payload: [UInt8], receiver:  &{FungibleToken.Receiver}?): AxelarGateway.ExecutionStatus
+    access(all) fun executeApp(commandResource: &AxelarGateway.CGPCommand, sourceChain: String, sourceAddress: String, payload: [UInt8]): ExecutionStatus
   }
 
   access(all) resource interface SenderIdentity {}
@@ -213,10 +217,11 @@ access(all) contract AxelarGateway {
               key: commandId,
               ExecutionStatus( 
                 isExecuted: true,
-                errorMessage: nil
+                statusCode: 0,
+                errorMessage: ""
               )
             )
-
+            // we only need to track this was executed, since there's no other processing for this command
             let transferStatus = AxelarAuthWeighted.transferOperatorship(message: encodedMessage, operators: operators, weights: weights, threshold: threshold, signatures: signatures, params: transferOperatorShipParams!)
             if transferStatus.isTransferred {
               emit Executed(commandId: commandId)
@@ -225,6 +230,7 @@ access(all) contract AxelarGateway {
                 key: commandId,
                 ExecutionStatus( 
                   isExecuted: false,
+                  statusCode: transferStatus.statusCode,
                   errorMessage: transferStatus.errorMessage
                 )
               )
@@ -258,7 +264,7 @@ access(all) contract AxelarGateway {
     }
   }
 
-  access(all) fun executeApp(commandId: String, sourceChain: String, sourceAddress: String, contractAddress: String, payload: [UInt8], receiver:  &{FungibleToken.Receiver}?): Bool {
+  access(all) fun executeApp(commandId: String, sourceChain: String, sourceAddress: String, contractAddress: String, payload: [UInt8]): Bool {
     // Check to see if command id has already been executed
     if (self.isCommandExecuted(commandId: commandId)) {
       panic("Command id: ".concat(commandId).concat(" is already executed"))
@@ -286,10 +292,13 @@ access(all) contract AxelarGateway {
     let cgpCommand = (&self.approvedCommands[commandId] as &CGPCommand?) ?? panic("Could not borrow reference to CGP Command")
 
     // Call the execute method from the dApp
-    let executionStatus = appCapability!.borrow()!.executeApp(commandResource: cgpCommand, sourceChain: sourceChain, sourceAddress: sourceAddress, payload: payload, receiver: receiver)
+    let executionStatus = appCapability!.borrow()!.executeApp(commandResource: cgpCommand, sourceChain: sourceChain, sourceAddress: sourceAddress, payload: payload)
 
     // Record command execution
-    self.executedCommands.insert(key: commandId, executionStatus)
+    self.executedCommands.insert(
+      key: commandId,
+      executionStatus
+    )
 
     // If the execute method is called successfully,
     // remove the cgp command resource and destroy the resource
@@ -376,5 +385,8 @@ access(all) contract AxelarGateway {
     }
 
     panic("Invalid Address")
+  }
+  pub fun updated(): Bool{
+    return true
   }
 }

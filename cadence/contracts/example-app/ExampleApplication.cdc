@@ -1,4 +1,5 @@
 import AxelarGateway from "../AxelarGateway.cdc"
+import FungibleToken from "FungibleToken"
 
 // This is an example dApp contract that is connected to the
 // GateWay for General Message Passing between blockchains
@@ -24,7 +25,7 @@ access(all) contract ExampleApplication {
   }
 
   access(all) resource ExecutableResource: AxelarGateway.Executable, AxelarGateway.SenderIdentity {
-    access(all) fun executeApp(commandResource: &AxelarGateway.CGPCommand, sourceChain: String, sourceAddress: String, payload: [UInt8]): AxelarGateway.ExecutionStatus {
+    access(all) fun executeApp(commandResource: &AxelarGateway.CGPCommand, sourceChain: String, sourceAddress: String, payload: [UInt8], receiver:  &{FungibleToken.Receiver}?): AxelarGateway.ExecutionStatus {
       let gmpData = GMPData(sourceChain: sourceChain, sourceAddress: sourceAddress, payload: payload)
       let commandId = commandResource.commandId
       ExampleApplication.approvedCommands.insert(key: commandId, gmpData)
@@ -36,7 +37,6 @@ access(all) contract ExampleApplication {
           errorMessage: nil
         )
       }
-
       return AxelarGateway.ExecutionStatus(
         isExecuted: false,
         errorMessage: "Could not insert gmp data"

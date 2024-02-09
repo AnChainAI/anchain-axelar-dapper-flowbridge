@@ -10,7 +10,7 @@ import AxelarGateway from ${constants.FLOW_ADMIN_ADDRESS}
 transaction(commandId: String, sourceChain: String, sourceAddress: String, contractAddress: String, payload: [UInt8]) {
   prepare(acct: AuthAccount) {}
   execute{
-    AxelarGateway.executeApp(commandId: commandId, sourceChain: sourceChain, sourceAddress: sourceAddress, contractAddress: contractAddress, payload: payload)
+    AxelarGateway.executeApp(commandId: commandId, sourceChain: sourceChain, sourceAddress: sourceAddress, contractAddress: contractAddress, payload: payload, receiver: nil)
   }
 }
 `
